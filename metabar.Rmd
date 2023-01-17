@@ -148,7 +148,7 @@ Remmove all pcrs with no reads
 for (i in 1:length(list_files)){
   data_temp <- get(paste0("metabarlist_",list_files[i]))
   data_temp <- subset_metabarlist(data_temp,"reads",rowSums(data_temp$reads)!=0)
-  assign(data_temp,paste0("metabarlist_",list_files[i]))
+  assign(paste0("metabarlist_",list_files[i]),data_temp)
 } 
 ```
 
