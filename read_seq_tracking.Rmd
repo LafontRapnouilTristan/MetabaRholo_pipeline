@@ -1,0 +1,84 @@
+```{r}
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(ggpubr)
+library(readr)
+library(forcats)
+library(stringr)
+
+list_files <- list.files("OBIholo_test/results/")
+
+
+glob_smry <- list()
+plot_glob_smry <- NULL
+sample_smry <- list()
+plot_sample_smry <- NULL
+tmp_merged <- NULL
+
+for (i in 1:length(list_files)){
+  current_name <- list_files[i] 
+  tmp <-  read.csv(paste0("OBIholo_test/results/",current_name,"/",current_name,"_seq_tracking.csv"),sep = "\t")
+  tmp %<>% mutate(seq_pct = (total_sequence/total_sequence[1])*100,
+                  reads_pct = (reads/reads[1])*100)
+  glob_smry[[current_name]] <- tmp
+  
+  plot_glob_smry[[current_name]] <- ggplot(melt(tmp,
+                                                id.vars = c('step'),
+                                                measure.vars = 4:5),
+                                           aes(x = step, y=value, color=variable))+
+    geom_boxplot()+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle=45, h=1))+
+    ggtitle(current_name)
+  
+  
+  tmp_derep <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_derep.sampstat"), " ")
+  tmp_clean <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_clean.sampstat2"), " ")
+  tmp_clust <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_clust.sampstat2"), " ")
+  tmp_agg <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_agg.sampstat2"), " ")
+  
+  # Join all data frames in list
+  list_df = list(tmp_derep,tmp_clean,tmp_clust,tmp_agg)
+  tmp_merged <- Reduce(function(x, y) merge(x, y, all=T), list_df)
+  
+  tmp_reads_dml <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_reads_tracking_deml.txt"), " ", col_names = F)[,1:2] 
+  tmp_seq_dml <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_seq_tracking_deml.txt"), "\t", col_names = F)[,1:2]
+  tmp_reads_filt <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_reads_tracking_basfilt.txt"), " ", col_names = F)[,1:2]
+  tmp_seq_filt <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_seq_tracking_basfilt.txt"), "\t", col_names = F)[,1:2]
+  colnames(tmp_reads_dml) <- c("dml.reads","sample")
+  colnames(tmp_seq_dml) <- c("sample","dml.otus")
+  colnames(tmp_reads_filt) <- c("filt.reads","sample")
+  colnames(tmp_seq_filt) <- c("sample","filt.otus")
+  
+  ngs <- arrange(read_delim(paste0("OBIholo_test/resources/",current_name,"/",current_name,"_ngsfilter.tab"),"\t", escape_double = F, trim_ws = T, col_names = F),X2)
+  typeX <- data.frame(proj = ngs$X1, sample = ngs$X2 ,type=str_extract(ngs$X8,"(?<=type=).+?(?=;)"))
+  
+  list_df = list(tmp_reads_dml,tmp_seq_dml,tmp_reads_filt,tmp_seq_filt,tmp_merged)
+  tmp_merged <- Reduce(function(x, y) merge(x, y, all=T), list_df)
+  typeX <- dplyr::filter(typeX, !sample %in% c(setdiff(typeX$sample,tmp_merged$sample)))
+  tmp_merged <- inner_join(tmp_merged,typeX,by = "sample")
+  sample_smry[[current_name]] <- tmp_merged
+  
+  melted_tmp_sample <- melt(tmp_merged, id.vars =  c('sample','type','proj'),  measure.vars = 2:13 ) %>% mutate(steps = str_extract(variable,".+(?=\\.)"),
+                                                                                                                tracked = str_extract(variable,"(?<=\\.).+"),
+                                                                                                                value = as.numeric(value)) %>%
+    
+    mutate(steps = fct_relevel(steps,"dml","filt","derepl","clean","clust","agg"),
+           tracked = fct_relevel(ifelse(tracked=="otus","seq/otus",tracked),"reads","seq/otus")) 
+  plot_sample_smry[[current_name]] <- ggplot(melted_tmp_sample,
+                                             aes(x = steps, y=value, fill=tracked))+
+    geom_boxplot()+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle=45, h=1))+
+    ggtitle(current_name)
+}  
+
+plot_smry <- ggarrange(plotlist = plot_glob_smry, ncol = 2, nrow = length(plot_glob_smry)/2, common.legend = T, legend = "bottom")
+plot_smry
+
+plot_smpl <- ggarrange(plotlist = plot_sample_smry, ncol = 2, nrow = length(plot_glob_smry)/2, common.legend = T, legend = "bottom")
+plot_smpl
+```
+
