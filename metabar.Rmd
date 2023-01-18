@@ -630,9 +630,11 @@ for (i in 1:length(list_files)){
   
   # Build PCoA ordinations 
   mds1 <- check_pcr_repl(tmp,
-                         groups =  as.factor(tmp$samples$organ))
+                         groups =  as.factor(tmp$samples$organ),
+                         replicates = as.factor(tmp$samples$organ))
   mds2 <- check_pcr_repl(data_temp_cleaned,
-                         groups =  as.factor(data_temp_cleaned$samples$organ))
+                         groups =  as.factor(data_temp_cleaned$samples$organ),
+                         replicates = as.factor(data_temp_cleaned$samples$organ))
   
   # Custom colors
   a <- mds1 + labs(color = "organ") +
