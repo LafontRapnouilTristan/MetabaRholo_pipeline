@@ -1,5 +1,10 @@
 script to analyse data coming from my metabarcoding processing pipeline (OBIholo_pipeline).
 
+```{r}
+remotes::install_github("metabaRfactory/metabaR")
+library(metabaR)
+```
+
 
 # Input format
 
@@ -278,7 +283,7 @@ raref <- ggarrange(plotlist =  raref_plots, ncol = 1, common.legend = T, legend 
 raref
 ```
 
-identify extraction contaminants
+identify extraction contaminants (method=max) => most stringent
 ```{r}
 ext_conta_tables <- NULL
 for (i in 1:length(list_files)){
@@ -295,7 +300,7 @@ for (i in 1:length(list_files)){
 }
 ```
 
-get their position in the PCR context
+get their position in the PCR context kinda dont care
 ```{r}
 conta_pos <- NULL
 for (i in 1:length(list_files)){
@@ -348,7 +353,7 @@ contaprop <- ggarrange(plotlist =  conta_prop, ncol = 2,nrow = length(list_files
 contaprop
 ```
 
-flag non-target motus.
+flag non-target motus (ie other than fungi or bacteria, very unlikely).
 ```{r}
 non_target_prop <- NULL
 non_targetconta_prop <- NULL
@@ -371,8 +376,12 @@ for (i in 1:length(list_files)){
 }
 ```
 
-investigate poorly assignated sequence.
-Need to set a confidence level or a taxonomic level were i reject either the assignation or even the sequence.
+investigate poorly assigned sequence.
+Need to set a confidence level or a taxonomic level were I reject either the assignation or even the sequence.
+
+!!! BEWARE !!! The default level of confidence to assign a taxonomy level is 50 out of the 100 bootstraps. 
+I keep this default to see the taxonomy but will probably discard all levels with bootstrap confidence < 80.
+We cannot change the number of bootstrap (100 hardcoded) and K-mer length (8).
 ```{r}
 plot_tax_boots <- NULL
 for (i in 1:length(list_files)){
@@ -425,7 +434,8 @@ plotseqdepth
 ```
 
 
-Test different thresholds to identify tagjumps 
+Test different thresholds to identify tagjumps.
+Ideally we maximize a drop in MOTUs AND Reads in pcr negative controls while mainly losing MOTUs in samples?
 ```{r}
 plot_tag_jump <- NULL
 for (i in 1:length(list_files)){
@@ -658,4 +668,18 @@ betadiv <- ggarrange(plotlist =  beta_div, ncol = 2,nrow = length(list_files)/2,
 betadiv
 ```
 
+# Preping for phyloseq
+
+Install and load phyloseq.
+```{r}
+BiocManager::install('phyloseq')
+BiocManager::install('DESeq2')
+
+library(phyloseq)
+library(DESeq2)
+```
+
+```{r}
+
+```
 
