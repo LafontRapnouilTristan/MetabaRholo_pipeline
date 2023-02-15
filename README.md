@@ -1,2 +1,3 @@
 # MetabaRholo_pipeline
-MetabaR script to analyse data downstream of OBIholo_pipeline
+
+R scripts to process output from the [OBIholo pipeline](https://github.com/LafontRapnouilTristan/OBIholo_pipeline) with the [metabaR](https://github.com/metabaRfactory/metabaR) package.
