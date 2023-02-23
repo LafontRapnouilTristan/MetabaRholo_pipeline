@@ -4,7 +4,8 @@ script to analyse data coming from my metabarcoding processing pipeline (OBIholo
 #  remotes::install_github("metabaRfactory/metabaR")
 library(metabaR)
 #  remotes::install_github("LafontRapnouilTristan/EcophyCofog")
-EcophyCofog::Library(c("readr","magrittr","dplyr","stringr"))
+EcophyCofog::Library(c("readr","magrittr","dplyr","stringr","reshape2",
+                       "ggplot2","ggpubr"))
 ```
 
 
@@ -253,7 +254,8 @@ for (i in 1:length(folder_names)){
     ggtitle(folder_names[[i]])
 } 
 diagplot <- ggarrange(plotlist = diag_plots, ncol = 2, nrow = length(diag_plots)/2, common.legend = T, legend = "bottom")
-diagplot
+
+ggsave("figures/reads_and_motus.jpg",diagplot )
 ```
 
 Plot MOTU-reads correlation in each pcrs.
@@ -269,7 +271,8 @@ for (i in 1:length(folder_names)){
     ggtitle(folder_names[[i]])
 } 
 moturead <- ggarrange(plotlist = motu_read_plots, ncol = 2, nrow = length(motu_read_plots)/2, common.legend = T, legend = "bottom")
-moturead
+
+ggsave("figures/motu_read_cor.jpg",moturead )
 ```
 
 rarefaction plots
@@ -281,7 +284,7 @@ for (i in 1:length(folder_names)){
   raref_plots[[folder_names[i]]] <- gghill_rarefaction(raref) + ggtitle(folder_names[[i]])
 } 
 raref <- ggarrange(plotlist =  raref_plots, ncol = 1, common.legend = T, legend ="bottom")
-raref
+ggsave("figures/raref.jpg",raref )
 ```
 
 identify extraction contaminants (method=max) => most stringent
@@ -627,6 +630,24 @@ for (i in 1:length(folder_names)){
 sumpipelineplots <- ggarrange(plotlist =  sumpipeline_plots, ncol = 2,nrow = length(folder_names)/2,common.legend = T, legend = "bottom")
 sumpipelineplots
 ```
+
+Visualize the effects of cleaning on MOTU-reads correlation in each pcrs.
+```{r}
+motu_read_plots <- NULL 
+for (i in 1:length(folder_names)){
+  # Using the nb_reads and nb_motus defined previously in the data_temp$pcrs table
+  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  motu_read_plots[[folder_names[i]]] <- ggplot(data_temp$pcrs, aes(x=nb_reads, y=nb_motus, color = control_type)) + 
+    geom_point() + theme_bw() + 
+    scale_y_log10() + scale_x_log10() + 
+    scale_color_manual(values = c("brown", "red", "cyan4","pink"), na.value = "darkgrey")+
+    ggtitle(folder_names[[i]])
+} 
+moturead <- ggarrange(plotlist = motu_read_plots, ncol = 2, nrow = length(motu_read_plots)/2, common.legend = T, legend = "bottom")
+
+ggsave("figures/motu_read_cor.jpg",moturead )
+```
+
 
 Visualize the effect of the cleaning on the biological signal.
 ```{r}
