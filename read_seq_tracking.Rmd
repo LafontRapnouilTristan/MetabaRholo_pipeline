@@ -8,7 +8,7 @@ library(readr)
 library(forcats)
 library(stringr)
 
-list_files <- list.files("OBIholo_test/results/")
+list_files <- list.files("data/OBI_pipeline_results/")
 
 
 glob_smry <- list()
@@ -19,7 +19,7 @@ tmp_merged <- NULL
 
 for (i in 1:length(list_files)){
   current_name <- list_files[i] 
-  tmp <-  read.csv(paste0("OBIholo_test/results/",current_name,"/",current_name,"_seq_tracking.csv"),sep = "\t")
+  tmp <-  read.csv(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_seq_tracking.csv"),sep = "\t")
   tmp %<>% mutate(seq_pct = (total_sequence/total_sequence[1])*100,
                   reads_pct = (reads/reads[1])*100)
   glob_smry[[current_name]] <- tmp
@@ -34,25 +34,24 @@ for (i in 1:length(list_files)){
     ggtitle(current_name)
   
   
-  tmp_derep <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_derep.sampstat"), " ")
-  tmp_clean <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_clean.sampstat2"), " ")
-  tmp_clust <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_clust.sampstat2"), " ")
-  tmp_agg <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_agg.sampstat2"), " ")
+  tmp_derep <- read_delim(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_derep.sampstat"), " ")
+  tmp_clust <- read_delim(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_clust.sampstat2"), " ")
+  tmp_agg <- read_delim(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_agg.sampstat2"), " ")
   
   # Join all data frames in list
-  list_df = list(tmp_derep,tmp_clean,tmp_clust,tmp_agg)
+  list_df = list(tmp_derep,tmp_clust,tmp_agg)
   tmp_merged <- Reduce(function(x, y) merge(x, y, all=T), list_df)
   
-  tmp_reads_dml <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_reads_tracking_deml.txt"), " ", col_names = F)[,1:2] 
-  tmp_seq_dml <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_seq_tracking_deml.txt"), "\t", col_names = F)[,1:2]
-  tmp_reads_filt <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_reads_tracking_basfilt.txt"), " ", col_names = F)[,1:2]
-  tmp_seq_filt <- read_delim(paste0("OBIholo_test/results/",current_name,"/",current_name,"_seq_tracking_basfilt.txt"), "\t", col_names = F)[,1:2]
+  tmp_reads_dml <- read_delim(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_reads_tracking_deml.txt"), " ", col_names = F)[,1:2] 
+  tmp_seq_dml <- read_delim(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_seq_tracking_deml.txt"), "\t", col_names = F)[,1:2]
+  tmp_reads_filt <- read_delim(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_reads_tracking_basfilt.txt"), " ", col_names = F)[,1:2]
+  tmp_seq_filt <- read_delim(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_seq_tracking_basfilt.txt"), "\t", col_names = F)[,1:2]
   colnames(tmp_reads_dml) <- c("dml.reads","sample")
   colnames(tmp_seq_dml) <- c("sample","dml.otus")
   colnames(tmp_reads_filt) <- c("filt.reads","sample")
   colnames(tmp_seq_filt) <- c("sample","filt.otus")
   
-  ngs <- arrange(read_delim(paste0("OBIholo_test/resources/",current_name,"/",current_name,"_ngsfilter.tab"),"\t", escape_double = F, trim_ws = T, col_names = F),X2)
+  ngs <- arrange(read_delim(paste0("data/OBI_pipeline_ngs/",current_name,"/",current_name,"_ngsfilter.tab"),"\t", escape_double = F, trim_ws = T, col_names = F),X2)
   typeX <- data.frame(proj = ngs$X1, sample = ngs$X2 ,type=str_extract(ngs$X8,"(?<=type=).+?(?=;)"))
   
   list_df = list(tmp_reads_dml,tmp_seq_dml,tmp_reads_filt,tmp_seq_filt,tmp_merged)
@@ -65,7 +64,7 @@ for (i in 1:length(list_files)){
                                                                                                                 tracked = str_extract(variable,"(?<=\\.).+"),
                                                                                                                 value = as.numeric(value)) %>%
     
-    mutate(steps = fct_relevel(steps,"dml","filt","derepl","clean","clust","agg"),
+    mutate(steps = fct_relevel(steps,"dml","filt","derepl","clust","agg"),
            tracked = fct_relevel(ifelse(tracked=="otus","seq/otus",tracked),"reads","seq/otus")) 
   plot_sample_smry[[current_name]] <- ggplot(melted_tmp_sample,
                                              aes(x = steps, y=value, fill=tracked))+
