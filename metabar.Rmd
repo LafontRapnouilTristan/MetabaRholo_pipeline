@@ -5,7 +5,7 @@ script to analyse data coming from my metabarcoding processing pipeline (OBIholo
 library(metabaR)
 #  remotes::install_github("LafontRapnouilTristan/EcophyCofog")
 EcophyCofog::Library(c("readr","magrittr","dplyr","stringr","reshape2",
-                       "ggplot2","ggpubr"))
+                       "ggplot2","ggpubr","forcats","cowplot"))
 ```
 
 
@@ -253,9 +253,9 @@ for (i in 1:length(folder_names)){
     theme(axis.text.x = element_text(angle=45, h=1))+
     ggtitle(folder_names[[i]])
 } 
-diagplot <- ggarrange(plotlist = diag_plots, ncol = 2, nrow = length(diag_plots)/2, common.legend = T, legend = "bottom")
+diagplot <- ggarrange(plotlist = diag_plots, ncol = 2, nrow = ceiling( length(diag_plots)/2), common.legend = T, legend = "bottom")
 
-ggsave("figures/reads_and_motus.jpg",diagplot )
+ggsave("figures/reads_and_motus.jpg",diagplot, height = 8, width = 6 )
 ```
 
 Plot MOTU-reads correlation in each pcrs.
@@ -270,21 +270,21 @@ for (i in 1:length(folder_names)){
     scale_color_manual(values = c("brown", "red", "cyan4","pink"), na.value = "darkgrey")+
     ggtitle(folder_names[[i]])
 } 
-moturead <- ggarrange(plotlist = motu_read_plots, ncol = 2, nrow = length(motu_read_plots)/2, common.legend = T, legend = "bottom")
+moturead <- ggarrange(plotlist = motu_read_plots, ncol = 2, nrow = ceiling(length(motu_read_plots)/2), common.legend = T, legend = "bottom")
 
-ggsave("figures/motu_read_cor.jpg",moturead )
+ggsave("figures/motu_read_cor.jpg",moturead, height = 8, width = 6 )
 ```
 
 rarefaction plots
 ```{r}
-raref_plots <- NULL
-for (i in 1:length(folder_names)){
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
-  raref <- hill_rarefaction(data_temp, nboot = 100, nsteps = 10)
-  raref_plots[[folder_names[i]]] <- gghill_rarefaction(raref) + ggtitle(folder_names[[i]])
-} 
-raref <- ggarrange(plotlist =  raref_plots, ncol = 1, common.legend = T, legend ="bottom")
-ggsave("figures/raref.jpg",raref )
+# raref_plots <- NULL
+# for (i in 1:length(folder_names)){
+#   data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+#   raref <- hill_rarefaction(data_temp, nboot = 100, nsteps = 10)
+#   raref_plots[[folder_names[i]]] <- gghill_rarefaction(raref) + ggtitle(folder_names[[i]])
+# } 
+# raref <- ggarrange(plotlist =  raref_plots, ncol = 1, common.legend = T, legend ="bottom")
+# ggsave("figures/raref.jpg",raref )
 ```
 
 identify extraction contaminants (method=max) => most stringent
@@ -293,10 +293,11 @@ ext_conta_tables <- NULL
 for (i in 1:length(folder_names)){
   data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
   
-# Identifying extraction contaminants
+  # Identifying extraction contaminants
   data_temp <- contaslayer(data_temp, 
-                          control_types = "extraction",
-                          output_col = "not_an_extraction_conta")
+                           method = "max",
+                           control_types = "extraction",
+                           output_col = "not_an_extraction_conta")
   assign(paste0("metabarlist_",folder_names[[i]]),data_temp)
   ext_conta_tables[[folder_names[i]]] <- table(data_temp$motus$not_an_extraction_conta)
   print(ext_conta_tables[[i]])
@@ -330,7 +331,7 @@ for (i in 1:length(folder_names)){
   data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
   
   # Compute relative abundance of all pcr contaminants together 
-  a <- data.frame(conta.relab = rowSums(data_temp$reads[,!data_temp$motus$not_an_extraction_conta]) / 
+  a <- data.frame(conta.relab = rowSums(as.data.frame(data_temp$reads[,!data_temp$motus$not_an_extraction_conta])) / 
                     rowSums(data_temp$reads))
   # Add information on control types
   a$control_type <- data_temp$pcrs$control_type[match(rownames(a), rownames(data_temp$pcrs))]
@@ -353,8 +354,9 @@ for (i in 1:length(folder_names)){
   assign(paste0("metabarlist_",folder_names[[i]]),data_temp)
   
 }
-contaprop <- ggarrange(plotlist =  conta_prop, ncol = 2,nrow = length(folder_names)/2, common.legend = T , legend ="bottom")
-contaprop
+contaprop <- ggarrange(plotlist =  conta_prop, ncol = 2,nrow = ceiling(length(folder_names)/2), common.legend = T , legend ="bottom")
+
+ggsave("figures/conta_prop.jpg",contaprop, height = 8, width = 6 )
 ```
 
 flag non-target motus (ie other than fungi or bacteria, very unlikely).
@@ -404,8 +406,9 @@ for (i in 1:length(folder_names)){
           panel.grid.minor.x = element_blank(),
           axis.title.x = element_blank())
 }
-plottaxboots <- ggarrange(plotlist =  plot_tax_boots, ncol = 2,nrow = length(folder_names)/2, common.legend = T , legend ="bottom")
-plottaxboots
+plottaxboots <- ggarrange(plotlist =  plot_tax_boots, ncol = 2,nrow = ceiling(length(folder_names)/2), common.legend = T , legend ="bottom")
+
+ggsave("figures/tax_boots.jpg",plottaxboots, height = 8, width = 6 )
 ```
 
 check seq depth per pcrs
@@ -426,15 +429,16 @@ for (i in 1:length(folder_names)){
     ggtitle(folder_names[[i]])
   
   
-  data_temp$pcrs$seqdepth_ok <- ifelse(data_temp$pcrs$nb_reads > 1e3, F, T)
+  data_temp$pcrs$seqdepth_ok <- ifelse(data_temp$pcrs$nb_reads < 1e3, F, T)
   assign(paste0("metabarlist_",folder_names[[i]]),data_temp)
   
   seq_depth_tab[[folder_names[i]]] <- table(data_temp$pcrs$seqdepth_ok[data_temp$pcrs$type=="sample"]) /
     nrow(data_temp$pcrs[data_temp$pcrs$type=="sample",])
   print(seq_depth_tab[[i]])
 }
-plotseqdepth <- ggarrange(plotlist =  plot_seq_depth, ncol = 2,nrow = length(folder_names)/2)
-plotseqdepth
+plotseqdepth <- ggarrange(plotlist =  plot_seq_depth, ncol = 2,nrow = ceiling(length(folder_names)/2))
+
+ggsave("figures/seq_depth.jpg",plotseqdepth, height = 8, width = 6 )
 ```
 
 
@@ -442,6 +446,7 @@ Test different thresholds to identify tagjumps.
 Ideally we maximize a drop in MOTUs AND Reads in pcr negative controls while mainly losing MOTUs in samples?
 ```{r}
 plot_tag_jump <- NULL
+metablists <- NULL
 for (i in 1:length(folder_names)){
   
   
@@ -476,7 +481,7 @@ for (i in 1:length(folder_names)){
     geom_vline(xintercept = which(levels(as.factor(tmp2$threshold)) == "0.01"), col="orange", lty=2) + 
     geom_jitter(aes(color=controls), width = 0.2, alpha=0.5) + 
     scale_color_manual(values = c("brown", "red", "cyan4","pink"), na.value = "darkgrey") +
-    facet_wrap(~variable+controls, scale="free_y", ncol=5) + 
+    facet_wrap(~variable+controls, scale="free_y", ncol=4) + 
     theme_bw() + 
     scale_y_log10() +
     labs(x="MOTU pcr : total abundance filtering threshold", y="# Reads/MOTUs") + 
@@ -485,10 +490,13 @@ for (i in 1:length(folder_names)){
           axis.text.x = element_text(angle=40, h=1), 
           legend.position = "none")+
     ggtitle(folder_names[[i]])
+  
+  metablists[[folder_names[i]]] <- tests 
 }
 
-plottagjump <- ggarrange(plotlist =  plot_tag_jump, ncol = 2,nrow = length(folder_names)/2)
-plottagjump
+plottagjump <- ggarrange(plotlist =  plot_tag_jump, ncol = 2,nrow = ceiling(length(folder_names)/2))
+
+ggsave("figures/tag_jump.jpg",plottagjump, height = 12, width = 13 )
 ```
 
 summarize noise in motus
@@ -530,8 +538,9 @@ for (i in 1:length(folder_names)){
     theme(legend.direction = "vertical") + 
     ggtitle(folder_names[i])
 }
-plotnoisemotu <- ggarrange(plotlist =  plot_noise_motu, ncol = 2,nrow = length(folder_names)/2,common.legend = T, legend = "bottom")
-plotnoisemotu
+plotnoisemotu <- ggarrange(plotlist =  plot_noise_motu, ncol = 2,nrow = ceiling(length(folder_names)/2),common.legend = T, legend = "bottom")
+
+ggsave("figures/noise_motu.jpg",plotnoisemotu, height = 8, width = 6 )
 ```
 
 summarize noise in pcrs
@@ -574,8 +583,9 @@ for (i in 1:length(folder_names)){
   
 } 
   
-plotnoisepcr <- ggarrange(plotlist =  plot_noise_pcr, ncol = 2,nrow = length(folder_names)/2,common.legend = T, legend = "bottom")
-plotnoisepcr
+plotnoisepcr <- ggarrange(plotlist =  plot_noise_pcr, ncol = 2,nrow = ceiling(length(folder_names)/2),common.legend = T, legend = "bottom")
+
+ggsave("figures/noise_pcr.jpg",plotnoisepcr, height = 8, width = 6)
 ```
 
 
@@ -586,12 +596,14 @@ plotnoisepcr
 # Clean noise
 
 ```{r}
+list_threshold <- "DEFINE THRESHOLDS"
+
 cleaned_metablist <- NULL
 summary_list <- NULL
 sumpipeline_plots <- NULL
 for (i in 1:length(folder_names)){ 
   # Use tag-jump corrected metabarlist with the threshold identified above
-  tmp <- test_metablist[[i]][["t_0.01"]]
+  tmp <- metablists[[i]][["t_0.01"]]
   
   # Subset on MOTUs: we keep motus that are defined as TRUE following the 
   # three criteria below (sum of three TRUE is equal to 3 with the rowSums function)
@@ -612,8 +624,8 @@ for (i in 1:length(folder_names)){
   data_temp$pcrs$nb_reads_postmetabaR = rowSums(data_temp$reads)
   data_temp$pcrs$nb_motus_postmetabaR = rowSums(ifelse(data_temp$reads>0, T, F))
   
-  check <- melt(data_temp$pcrs[,c("reads", "reads_postmetabaR", 
-                                       "motus", "motus_postmetabaR")])
+  check <- melt(data_temp$pcrs[,c("nb_reads", "nb_reads_postmetabaR", 
+                                       "nb_motus", "nb_motus_postmetabaR")])
   check$type <- ifelse(grepl("motus", check$variable), "richness", "abundance")
   
   sumpipeline_plots[[folder_names[i]]] <- ggplot(data = check, aes(x = variable, y = value)) +
@@ -627,33 +639,62 @@ for (i in 1:length(folder_names)){
   
   cleaned_metablist[[folder_names[i]]] <- data_temp
 }  
-sumpipelineplots <- ggarrange(plotlist =  sumpipeline_plots, ncol = 2,nrow = length(folder_names)/2,common.legend = T, legend = "bottom")
-sumpipelineplots
+
+rm_moglom <- sumpipeline_plots[c(-2)]
+
+sumpipelineplots <- ggarrange(plotlist =  rm_moglom, ncol = 2,nrow = ceiling(length(rm_moglom)/2),common.legend = T, legend = "bottom")
+
+ggsave("figures/sum_pipeline.jpg",sumpipelineplots, height = 6, width = 6)
 ```
 
 Visualize the effects of cleaning on MOTU-reads correlation in each pcrs.
 ```{r}
-motu_read_plots <- NULL 
+motu_read_plots_post <- NULL 
 for (i in 1:length(folder_names)){
   # Using the nb_reads and nb_motus defined previously in the data_temp$pcrs table
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
-  motu_read_plots[[folder_names[i]]] <- ggplot(data_temp$pcrs, aes(x=nb_reads, y=nb_motus, color = control_type)) + 
+  data_temp <- cleaned_metablist[[i]]
+  motu_read_plots_post[[folder_names[i]]] <- ggplot(data_temp$pcrs, aes(x=nb_reads, y=nb_motus, color = control_type)) + 
     geom_point() + theme_bw() + 
     scale_y_log10() + scale_x_log10() + 
     scale_color_manual(values = c("brown", "red", "cyan4","pink"), na.value = "darkgrey")+
     ggtitle(folder_names[[i]])
 } 
-moturead <- ggarrange(plotlist = motu_read_plots, ncol = 2, nrow = length(motu_read_plots)/2, common.legend = T, legend = "bottom")
+moturead <- ggarrange(plotlist = motu_read_plots_post, ncol = 2, nrow = ceiling(length(motu_read_plots_post)/2), common.legend = T, legend = "bottom")
 
-ggsave("figures/motu_read_cor.jpg",moturead )
+ggsave("figures/motu_read_cor_post.jpg",moturead, height = 8, width = 6 )
 ```
+
+Visualize the effects of cleaning on taxboots.
+```{r}
+plot_tax_boots_post <- NULL
+for (i in 1:length(folder_names)){
+  
+  data_temp <- cleaned_metablist[[i]]
+  melty <- melt(data_temp$motus, id = c(colnames(data_temp$motus)[which(grepl("_boots",colnames(data_temp$motus))==F)] ))
+  melty$variable <- gsub("_boots","",melty$variable)
+  melty$variable <- as.factor(melty$variable)
+  melty$variable <- fct_relevel(melty$variable,"Kingdom","Phylum","Class","Order","Family","Genus","Species")
+  plot_tax_boots_post[[folder_names[i]]] <-  ggplot(melty,aes(x=variable,y=as.numeric(value))) +
+                                   geom_boxplot(aes(fill=variable))+
+    theme_bw()+
+    ggtitle(folder_names[[i]])+
+    labs(y="conf %")+
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          axis.title.x = element_blank())
+}
+plottaxbootspost <- ggarrange(plotlist =  plot_tax_boots_post, ncol = 2,nrow = ceiling(length(plot_tax_boots_post)/2), common.legend = T , legend ="bottom")
+
+ggsave("figures/tax_boots_post.jpg",plottaxbootspost, height = 8, width = 6 )
+```
+
 
 
 Visualize the effect of the cleaning on the biological signal.
 ```{r}
 
 beta_div <- NULL
-for (i in 1:length(folder_names)){ 
+for (i in c(1,3,4,5)){ 
   data_temp_cleaned <- cleaned_metablist[[i]] 
   data_temp <- get(paste0("metabarlist_",folder_names[i]))
   # Get row data only for samples
@@ -686,8 +727,16 @@ for (i in 1:length(folder_names)){
     ggtitle(folder_names[[i]])
   
 }
-betadiv <- ggarrange(plotlist =  beta_div, ncol = 2,nrow = length(folder_names)/2,common.legend = T, legend = "bottom")
-betadiv
+betadiv <- ggarrange(plotlist =  beta_div, ncol = 2,nrow = ceiling(length(beta_div)/2),common.legend = T, legend = "bottom")
+
+ggsave("figures/betadiv.jpg",betadiv, height = 12, width = 18 )
+```
+
+
+clean environment
+```{r}
+toremove <- grep("^cleaned|folder_names|^metab", ls(), invert=T, value=T)
+rm(list = c(toremove, "toremove"))
 ```
 
 
@@ -700,7 +749,7 @@ betadiv
 Runs containing mother leaf samples:
   - mother_16s
   - mother_ITS2
-  - mother_glom
+  - mother_glom (out, no samples passed pipeline)
   - comp_mother_16s
 ```{r}
 # First filter non mother leaf samples
