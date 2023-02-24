@@ -37,13 +37,18 @@ Load required files:
 
 ```{r}
 folder_names <- list.files("data/OBI_pipeline_results/")
+
 list_motus <- list()
 list_reads <- list()
 list_filters <- list()
+
 for (i in 1:length(folder_names)){
   current_name <- folder_names[i] 
+  
   list_motus[[current_name]] <- read.csv2(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_taxassigned.csv"))
+  
   list_reads[[current_name]] <- read_delim(paste0("data/OBI_pipeline_results/",current_name,"/",current_name,"_R1R2_good_demultiplexed_basicfilt_derepl_cl_agg.tab"),"\t", escape_double = F, trim_ws = T)
+  
   list_filters[[current_name]] <- read_delim(paste0("data/OBI_pipeline_ngs/",current_name,"_ngsfilter.tab"),"\t", escape_double = F, trim_ws = T, col_names = F)
 } 
 ```
@@ -52,8 +57,10 @@ for (i in 1:length(folder_names)){
 get MOTUS counts in data_motus
 ```{r}
 for (i in 1:length(folder_names)){
+  
   list_motus[[i]] <- list_motus[[i]][match(toupper(list_reads[[i]]$sequence ),list_motus[[i]]$sequences ),]
   list_motus[[i]]$counts <- list_reads[[i]]$count
+  
 } 
 ```
 
@@ -61,6 +68,7 @@ prepare data_reads
 ```{r}
 list_motus_seq <- list()
 for (i in 1:length(list_reads)){
+  
   list_motus_seq[[folder_names[i]]] <-  list_reads[[i]][,c("id","sequence")] 
   sample_col <- which(grepl("sample:",colnames(list_reads[[i]]))==T)
   tmp <- list_reads[[i]][,c(1,sample_col)]
@@ -69,6 +77,7 @@ for (i in 1:length(list_reads)){
   colnames(tmp1) <- id
   rownames(tmp1) <- gsub("sample:","",gsub("-","_",rownames(tmp1)))
   list_reads[[i]] <- tmp1 
+  
 } 
 ```
 
@@ -76,7 +85,9 @@ prepare data_samples
 ```{r}
 list_samples <- list()
 for (i in 1:length(list_reads)){
+  
   list_samples[[i]] <- data.frame(samples=rownames(list_reads[[i]]))
+  
 } 
 ```
 
@@ -84,6 +95,7 @@ prepare data_pcrs
 ```{r}
 list_pcrs <- list()
 for (i in 1:length(list_reads)){
+  
   colnames(list_filters[[i]]) <- c("project","ID","Tags","PrimeF","PrimeR","diff_doublons","x","Type")
   
   list_filters[[i]] <- dplyr::filter(list_filters[[i]], !ID %in% c(setdiff(sort(list_filters[[i]]$ID),sort(list_samples[[i]]$samples))))
@@ -93,6 +105,7 @@ for (i in 1:length(list_reads)){
                                                                      str_extract(arrange(list_filters[[i]],ID)$Type,"(?<=control_type=)\\w+"),NA),
                                                  plate= str_extract(arrange(list_filters[[i]],ID)$Type,"(?<=position=)[[:alnum:]]*"),
                                                  well= str_extract(arrange(list_filters[[i]],ID)$Type,"(?<=_)[[:upper:]]{1}[[:digit:]]{1,2}"))
+  
 }
 ```
 
@@ -107,15 +120,18 @@ for (i in 1:length(list_reads)){
 finalize
 ```{r}
 for (i in 1:length(list_reads)){
+  
   rownames(list_motus[[i]]) <- sprintf("MOTU_%05d", 1:nrow(list_motus[[i]]))
   colnames(list_reads[[i]]) <- sprintf("MOTU_%05d", 1:ncol(list_reads[[i]]))
+  
   list_pcrs[[i]] %<>% arrange(samples)
   list_filters[[i]] %<>% arrange(ID)
+  
   rownames(list_pcrs[[i]]) <- list_pcrs[[i]]$samples 
   colnames(list_motus[[i]])[1] <- "sequence" 
   
-  list_pcrs[[i]] %<>% mutate(tag_fwd = str_extract(list_filters[[i]]$Tags,"^\\w+"),
-                             tag_rev = str_extract(list_filters[[i]]$Tags,"\\w+$"),
+  list_pcrs[[i]] %<>% mutate(tag_fwd = str_extract(list_filters[[i]]$Tags,"^\\w+"), # get fwd tag seq
+                             tag_rev = str_extract(list_filters[[i]]$Tags,"\\w+$"), # get rev tag seq
                              primer_fwd = list_filters[[i]]$PrimeF,
                              primer_rev = list_filters[[i]]$PrimeR,
                              plate_col = as.numeric(str_extract(well,"[:digit:]{1,2}")),# numeric für metabaR 
@@ -130,35 +146,46 @@ for (i in 1:length(list_reads)){
     mutate(control_type = as.factor(control_type))
   
   rownames(list_samples[[i]]) <- list_samples[[i]]$samples
+  
 }
 ```
 
 
 generate metabarlists
 ```{r}
-for (i in 1:length(list_reads)){
-  assign(paste0("metabarlist_", folder_names[i]),metabaR::metabarlist_generator(reads=as.matrix(list_reads[[i]]),
-                                                                              motus=list_motus[[i]],
-                                                                              pcrs=list_pcrs[[i]],
-                                                                              samples=list_samples[[i]]))
+metablists <- NULL
+
+for (i in 1:length(folder_names)){
+  
+  metablists[[folder_names[i]]] <- metabaR::metabarlist_generator(reads=as.matrix(list_reads[[i]]),
+                                                               motus=list_motus[[i]],
+                                                               pcrs=list_pcrs[[i]],
+                                                               samples=list_samples[[i]])
 }
 ```
+
+rm temp_files 
+```{r}
+toremove <- grep("folder_names|^metab", ls(), invert=T, value=T)
+rm(list = c(toremove, "toremove"))
+```
+
 
 Check if and which list have empty pcrs and motus.
 ```{r}
 for (i in 1:length(folder_names)){
-  data_temp <- get(paste0("metabarlist_",folder_names[i]))
+  data_temp <- metablists[[folder_names[i]]]
   if(sum(colSums(data_temp$reads)==0)>0){print(paste0(folder_names[i],": empty motus present"))}
   if(sum(rowSums(data_temp$reads)==0)>0){print(paste0(folder_names[i],": empty pcrs present"))}
 } 
 ```
 
-Remmove all pcrs with no reads
+Remove all pcrs with no reads
 ```{r}
 for (i in 1:length(folder_names)){
-  data_temp <- get(paste0("metabarlist_",folder_names[i]))
+  data_temp <- metablists[[folder_names[i]]]
   data_temp <- subset_metabarlist(data_temp,"reads",rowSums(data_temp$reads)!=0)
-  assign(paste0("metabarlist_",folder_names[i]),data_temp)
+  metablists[[folder_names[i]]] <- data_temp
 } 
 ```
 
@@ -174,75 +201,74 @@ Add info on my samples, has to be improved but i'll see when i'll get my data.
 #                                                               ifelse(grepl("_R",metabarlist_comp_mother_16s$samples$samples)==T,"ROOTS",
 #                                                                      ifelse(grepl("_GR",metabarlist_comp_mother_16s$samples$samples)==T,"SEEDS","SOIL"))))
 
-metabarlist_mother_16s$samples %<>% mutate(organ = ifelse( grepl("(_Rp)|([0-9]{3}R)",metabarlist_mother_16s$samples$samples)==T,"ROOTS",
-                                                           ifelse( grepl("FL",metabarlist_mother_16s$samples$samples)==T,"FLOWER",
-                                                                   ifelse( grepl("FE",metabarlist_mother_16s$samples$samples)==T,"LEAVES",
-                                                                           ifelse( grepl("FR",metabarlist_mother_16s$samples$samples)==T,"FRUIT",
-                                                                                   ifelse( grepl("RJ",metabarlist_mother_16s$samples$samples)==T,"RESHOOT",
-                                                                                           ifelse( grepl("GR",metabarlist_mother_16s$samples$samples)==T,"SEEDS",
-                                                                                                   ifelse( grepl("ED",metabarlist_mother_16s$samples$samples)==T,"ENDOPHYTES",
-                                                                                                           ifelse( grepl("EP",metabarlist_mother_16s$samples$samples)==T,"EPIPHYTES",
-                                                                                                                   ifelse( grepl("[0-9]{3}(S|C)",metabarlist_mother_16s$samples$samples)==T,"RHIZOSPHERE",
-                                                                                                                           ifelse( grepl("CT|EXT|PCR|TPOS",metabarlist_mother_16s$samples$samples)==T,"CONTROL","SOIL")
-                                                                                                                   ))))))))))
+metablists[[folder_names[1]]]$samples %<>% 
+  mutate(organ = ifelse( grepl("(_Rp)|([0-9]{3}R)",metablists[[folder_names[1]]]$samples$samples)==T,"ROOTS",
+                         ifelse( grepl("FL",metablists[[folder_names[1]]]$samples$samples)==T,"FLOWER",
+                                 ifelse( grepl("FE",metablists[[folder_names[1]]]$samples$samples)==T,"LEAVES",
+                                         ifelse( grepl("FR",metablists[[folder_names[1]]]$samples$samples)==T,"FRUIT",
+                                                 ifelse( grepl("RJ",metablists[[folder_names[1]]]$samples$samples)==T,"RESHOOT",
+                                                         ifelse( grepl("GR",metablists[[folder_names[1]]]$samples$samples)==T,"SEEDS",
+                                                                 ifelse( grepl("ED",metablists[[folder_names[1]]]$samples$samples)==T,"ENDOPHYTES",
+                                                                         ifelse( grepl("EP",metablists[[folder_names[1]]]$samples$samples)==T,"EPIPHYTES",
+                                                                                 ifelse( grepl("[0-9]{3}(S|C)",metablists[[folder_names[1]]]$samples$samples)==T,"RHIZOSPHERE",
+                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",metablists[[folder_names[1]]]$samples$samples)==T,"CONTROL","SOIL")
+                                                                                 ))))))))))
 
-metabarlist_mother_glom$samples %<>% mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",metabarlist_mother_glom$samples$samples)==T,"ROOTS",
-                                                            ifelse( grepl("FL",metabarlist_mother_glom$samples$samples)==T,"FLOWER",
-                                                                    ifelse( grepl("FE",metabarlist_mother_glom$samples$samples)==T,"LEAVES",
-                                                                            ifelse( grepl("FR",metabarlist_mother_glom$samples$samples)==T,"FRUIT",
-                                                                                    ifelse( grepl("RJ",metabarlist_mother_glom$samples$samples)==T,"RESHOOT",
-                                                                                            ifelse( grepl("GR",metabarlist_mother_glom$samples$samples)==T,"SEEDS",
-                                                                                                    ifelse( grepl("ED",metabarlist_mother_glom$samples$samples)==T,"ENDOPHYTES",
-                                                                                                            ifelse( grepl("EP",metabarlist_mother_glom$samples$samples)==T,"EPIPHYTES",
-                                                                                                                    ifelse( grepl("[0-9]{3}(S|C)",metabarlist_mother_glom$samples$samples)==T,"RHIZOSPHERE",
-                                                                                                                            ifelse( grepl("CT|EXT|PCR|TPOS",metabarlist_mother_glom$samples$samples)==T,"CONTROL","SOIL")
-                                                                                                                    ))))))))))
+metablists[[folder_names[2]]]$samples %<>% 
+  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",metablists[[folder_names[2]]]$samples$samples)==T,"ROOTS",
+                         ifelse( grepl("FL",metablists[[folder_names[2]]]$samples$samples)==T,"FLOWER",
+                                 ifelse( grepl("FE",metablists[[folder_names[2]]]$samples$samples)==T,"LEAVES",
+                                         ifelse( grepl("FR",metablists[[folder_names[2]]]$samples$samples)==T,"FRUIT",
+                                                 ifelse( grepl("RJ",metablists[[folder_names[2]]]$samples$samples)==T,"RESHOOT",
+                                                         ifelse( grepl("GR",metablists[[folder_names[2]]]$samples$samples)==T,"SEEDS",
+                                                                 ifelse( grepl("ED",metablists[[folder_names[2]]]$samples$samples)==T,"ENDOPHYTES",
+                                                                         ifelse( grepl("EP",metablists[[folder_names[2]]]$samples$samples)==T,"EPIPHYTES",
+                                                                                 ifelse( grepl("[0-9]{3}(S|C)",metablists[[folder_names[2]]]$samples$samples)==T,"RHIZOSPHERE",
+                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",metablists[[folder_names[2]]]$samples$samples)==T,"CONTROL","SOIL")
+                                                                                 ))))))))))
 
-metabarlist_seedling_16s$samples %<>% mutate(organ= ifelse(grepl("_F",metabarlist_seedling_16s$samples$samples)==T,"LEAVES",
-                                                           ifelse(grepl("_R",metabarlist_seedling_16s$samples$samples)==T,"ROOTS","CONTROL")))
+metablists[[folder_names[4]]]$samples %<>% 
+  mutate(organ= ifelse(grepl("_F",metablists[[folder_names[4]]]$samples$samples)==T,"LEAVES",
+                       ifelse(grepl("_R",metablists[[folder_names[4]]]$samples$samples)==T,"ROOTS","CONTROL")))
 
 
-metabarlist_mother_ITS2$samples %<>% mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",metabarlist_mother_ITS2$samples$samples)==T,"ROOTS",
-                                                            ifelse( grepl("FL",metabarlist_mother_ITS2$samples$samples)==T,"FLOWER",
-                                                                    ifelse( grepl("FE",metabarlist_mother_ITS2$samples$samples)==T,"LEAVES",
-                                                                            ifelse( grepl("FR",metabarlist_mother_ITS2$samples$samples)==T,"FRUIT",
-                                                                                    ifelse( grepl("RJ",metabarlist_mother_ITS2$samples$samples)==T,"RESHOOT",
-                                                                                            ifelse( grepl("GR",metabarlist_mother_ITS2$samples$samples)==T,"SEEDS",
-                                                                                                    ifelse( grepl("ED",metabarlist_mother_ITS2$samples$samples)==T,"ENDOPHYTES",
-                                                                                                            ifelse( grepl("EP",metabarlist_mother_ITS2$samples$samples)==T,"EPIPHYTES",
-                                                                                                                    ifelse( grepl("[0-9]{3}(S|C)",metabarlist_mother_ITS2$samples$samples)==T,"RHIZOSPHERE",
-                                                                                                                            ifelse( grepl("CT|EXT|PCR|TPOS",metabarlist_mother_ITS2$samples$samples)==T,"CONTROL","SOIL")
-                                                                                                                    ))))))))))
+metablists[[folder_names[3]]]$samples %<>% 
+  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",metablists[[folder_names[3]]]$samples$samples)==T,"ROOTS",
+                         ifelse( grepl("FL",metablists[[folder_names[3]]]$samples$samples)==T,"FLOWER",
+                                 ifelse( grepl("FE",metablists[[folder_names[3]]]$samples$samples)==T,"LEAVES",
+                                         ifelse( grepl("FR",metablists[[folder_names[3]]]$samples$samples)==T,"FRUIT",
+                                                 ifelse( grepl("RJ",metablists[[folder_names[3]]]$samples$samples)==T,"RESHOOT",
+                                                         ifelse( grepl("GR",metablists[[folder_names[3]]]$samples$samples)==T,"SEEDS",
+                                                                 ifelse( grepl("ED",metablists[[folder_names[3]]]$samples$samples)==T,"ENDOPHYTES",
+                                                                         ifelse( grepl("EP",metablists[[folder_names[3]]]$samples$samples)==T,"EPIPHYTES",
+                                                                                 ifelse( grepl("[0-9]{3}(S|C)",metablists[[folder_names[3]]]$samples$samples)==T,"RHIZOSPHERE",
+                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",metablists[[folder_names[3]]]$samples$samples)==T,"CONTROL","SOIL")
+                                                                                 ))))))))))
 
-metabarlist_seedling_ITS2$samples %<>% mutate(organ= ifelse(grepl("_F",metabarlist_seedling_ITS2$samples$samples)==T,"LEAVES",
-                                                            ifelse(grepl("_R",metabarlist_seedling_ITS2$samples$samples)==T,"ROOTS","CONTROL")))
+metablists[[folder_names[5]]]$samples %<>%
+  mutate(organ= ifelse(grepl("_F",metablists[[folder_names[5]]]$samples$samples)==T,"LEAVES",
+                       ifelse(grepl("_R",metablists[[folder_names[5]]]$samples$samples)==T,"ROOTS","CONTROL")))
 
 ```
-
-
 
 
 # Metabar plot and diagnostic noise
-
-Clean env so i just keep my metabarlists and filename list.
-```{r}
-toremove <- grep("^metabarlist|folder_names|list_motus_seq", ls(), invert=T, value=T)
-rm(list = c(toremove, "toremove"))
-```
-
 
 Plot the number of Reads and OTUs per pcr according to pcr type.
 ```{r}
 diag_plots <- NULL
 for (i in 1:length(folder_names)){
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   
   # Compute the number of reads per pcr
   data_temp$pcrs$nb_reads <- rowSums(data_temp$reads)
   
   # Compute the number of motus per pcr
   data_temp$pcrs$nb_motus <- rowSums(data_temp$reads>0)
-  assign(paste0("metabarlist_",folder_names[[i]]),data_temp)
+  
+  # Overwrite with these new info
+  metablists[[folder_names[i]]] <- data_temp
+  
   check1 <- melt(data_temp$pcrs[,c("control_type", "nb_reads", "nb_motus")])
   
   diag_plots[[folder_names[i]]] <- ggplot(data <- check1, aes(x=control_type, y=value, color=control_type)) + 
@@ -263,7 +289,7 @@ Plot MOTU-reads correlation in each pcrs.
 motu_read_plots <- NULL 
 for (i in 1:length(folder_names)){
   # Using the nb_reads and nb_motus defined previously in the data_temp$pcrs table
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   motu_read_plots[[folder_names[i]]] <- ggplot(data_temp$pcrs, aes(x=nb_reads, y=nb_motus, color = control_type)) + 
     geom_point() + theme_bw() + 
     scale_y_log10() + scale_x_log10() + 
@@ -279,7 +305,7 @@ rarefaction plots
 ```{r}
 # raref_plots <- NULL
 # for (i in 1:length(folder_names)){
-#   data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+#   data_temp <- metablists[[folder_names[i]]]
 #   raref <- hill_rarefaction(data_temp, nboot = 100, nsteps = 10)
 #   raref_plots[[folder_names[i]]] <- gghill_rarefaction(raref) + ggtitle(folder_names[[i]])
 # } 
@@ -291,14 +317,18 @@ identify extraction contaminants (method=max) => most stringent
 ```{r}
 ext_conta_tables <- NULL
 for (i in 1:length(folder_names)){
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   
   # Identifying extraction contaminants
   data_temp <- contaslayer(data_temp, 
                            method = "max",
                            control_types = "extraction",
                            output_col = "not_an_extraction_conta")
-  assign(paste0("metabarlist_",folder_names[[i]]),data_temp)
+  
+  # Overwrite 
+  metablists[[folder_names[i]]] <- data_temp
+  
+  # Tabulate results
   ext_conta_tables[[folder_names[i]]] <- table(data_temp$motus$not_an_extraction_conta)
   print(ext_conta_tables[[i]])
   flush.console()
@@ -309,7 +339,7 @@ get their position in the PCR context kinda dont care
 ```{r}
 conta_pos <- NULL
 for (i in 1:length(folder_names)){
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   
 # Identify the most common contaminant
 # get contaminant ids
@@ -328,11 +358,12 @@ store and plot the proportion of contaminant reads per pcr and overall.
 conta_prop <- NULL
 conta_prop_table <- NULL
 for (i in 1:length(folder_names)){
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   
   # Compute relative abundance of all pcr contaminants together 
   a <- data.frame(conta.relab = rowSums(as.data.frame(data_temp$reads[,!data_temp$motus$not_an_extraction_conta])) / 
                     rowSums(data_temp$reads))
+  
   # Add information on control types
   a$control_type <- data_temp$pcrs$control_type[match(rownames(a), rownames(data_temp$pcrs))]
   
@@ -344,6 +375,7 @@ for (i in 1:length(folder_names)){
     scale_y_log10() +
     ggtitle(folder_names[[i]])
   
+  # Tag as low contamination level pcrs with less than 10% of contaminants
   data_temp$pcrs$low_contamination_level <- 
     ifelse(a$conta.relab[match(rownames(data_temp$pcrs), rownames(a))]>1e-1,  F, T)
   
@@ -351,23 +383,28 @@ for (i in 1:length(folder_names)){
   # (controls included) based on this criterion
   conta_prop_table[[folder_names[i]]] <- table(data_temp$pcrs$low_contamination_level) / nrow(data_temp$pcrs)
   print(conta_prop_table[[i]])
-  assign(paste0("metabarlist_",folder_names[[i]]),data_temp)
+  
+  # Overwrite
+  metablists[[folder_names[i]]] <- data_temp
   
 }
+
 contaprop <- ggarrange(plotlist =  conta_prop, ncol = 2,nrow = ceiling(length(folder_names)/2), common.legend = T , legend ="bottom")
 
 ggsave("figures/conta_prop.jpg",contaprop, height = 8, width = 6 )
 ```
 
-flag non-target motus (ie other than fungi or bacteria, very unlikely).
+flag non-target motus (ie other than fungi or bacteria, very unlikely cuz only fungal and bacterial databases).
 ```{r}
 non_target_prop <- NULL
 non_targetconta_prop <- NULL
 for (i in 1:length(folder_names)){
   
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
-  target <- dplyr::last(BBmisc::explode(folder_names[i],"_"))
-  target_kingdom <- ifelse(target=="16s","Bacteria","Fungi")
+  data_temp <- metablists[[folder_names[i]]]
+  
+  target <- dplyr::last(BBmisc::explode(folder_names[i],"_")) # get current target
+  target_kingdom <- ifelse(target=="16s","Bacteria","Fungi") # what do we target
+  
   #Flag MOTUs corresponding to target (TRUE) vs. non-target (FALSE) taxa 
   data_temp$motus$target_taxon <- grepl(target_kingdom, data_temp$motus$Kingdom)
   
@@ -378,7 +415,9 @@ for (i in 1:length(folder_names)){
   non_targetconta_prop[[folder_names[i]]] <- table(data_temp$motus$target_taxon, 
                                      data_temp$motus$not_an_extraction_conta)
   print(non_target_prop[[i]]);print(non_targetconta_prop[[i]])
-  assign(paste0("metabarlist_",folder_names[[i]]),data_temp)
+  
+  # Overwrite
+  metablists[[folder_names[i]]] <- data_temp
 }
 ```
 
@@ -392,11 +431,18 @@ We cannot change the number of bootstrap (100 hardcoded) and K-mer length (8).
 plot_tax_boots <- NULL
 for (i in 1:length(folder_names)){
   
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   melty <- melt(data_temp$motus, id = c(colnames(data_temp$motus)[which(grepl("_boots",colnames(data_temp$motus))==F)] ))
   melty$variable <- gsub("_boots","",melty$variable)
   melty$variable <- as.factor(melty$variable)
-  melty$variable <- fct_relevel(melty$variable,"Kingdom","Phylum","Class","Order","Family","Genus","Species")
+  
+  target <- dplyr::last(BBmisc::explode(folder_names[i],"_"))
+  if(target=="16s"){
+    melty$variable <- fct_relevel(melty$variable,"Kingdom","Phylum","Class","Order","Family","Genus")
+  }else{
+    melty$variable <- fct_relevel(melty$variable,"Kingdom","Phylum","Class","Order","Family","Genus","Species")
+  }
+  
   plot_tax_boots[[folder_names[i]]] <-  ggplot(melty,aes(x=variable,y=as.numeric(value))) +
                                    geom_boxplot(aes(fill=variable))+
     theme_bw()+
@@ -404,9 +450,29 @@ for (i in 1:length(folder_names)){
     labs(y="conf %")+
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
-          axis.title.x = element_blank())
+          axis.title.x = element_blank())+
+    theme(legend.position = "n")
+  
+  
+  # Tag sequences not assigned below Kingdom
+  data_temp$motus %<>% mutate(poor_assign = ifelse(is.na(Phylum)==T,T,F))
+  # Create a "confident taxonomy" (boots >= 80)
+  colnames_tmp <- c(gsub("_boots","",grep("boots",colnames(data_temp$motus), value = T)))
+  
+  for(i in 1:length(colnames_tmp)){
+    
+    col <- match(colnames_tmp[i],colnames(data_temp$motus))
+    a <- data_temp$motus[,c(col,col+length(colnames_tmp))]
+    conf <- data.frame(ifelse(a[,2]<80,NA,a[,1]))
+    colnames(conf) <- paste0("conf_",colnames_tmp[i])
+    data_temp$motus <- cbind(data_temp$motus,conf)
+  }
+  # Overwrite
+  metablists[[folder_names[i]]] <- data_temp 
+  
 }
-plottaxboots <- ggarrange(plotlist =  plot_tax_boots, ncol = 2,nrow = ceiling(length(folder_names)/2), common.legend = T , legend ="bottom")
+
+plottaxboots <- ggarrange(plotlist =  plot_tax_boots, ncol = 2,nrow = ceiling(length(plot_tax_boots)/2))
 
 ggsave("figures/tax_boots.jpg",plottaxboots, height = 8, width = 6 )
 ```
@@ -417,7 +483,7 @@ plot_seq_depth <- NULL
 seq_depth_tab <- NULL
 for (i in 1:length(folder_names)){
 
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   plot_seq_depth[[folder_names[i]]] <-  ggplot(data_temp$pcrs, aes(nb_reads)) +
     geom_histogram(bins=40, color="grey", fill="white") + 
     geom_vline(xintercept = 1e3, lty=2, color="orange") + # threshold
@@ -450,7 +516,7 @@ metablists <- NULL
 for (i in 1:length(folder_names)){
   
   
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   
   # Define a vector of thresholds to test
   thresholds <- c(0,1e-4,1e-3, 1e-2, 3e-2, 5e-2) 
@@ -505,7 +571,7 @@ plot_noise_motu <- NULL
 motu_noise_tab <- NULL
 for (i in 1:length(folder_names)){
   
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   
   # Create a table of MOTUs quality criteria 
   # noise is identified as FALSE in data_temp, the "!" transforms it to TRUE 
@@ -549,7 +615,7 @@ plot_noise_pcr <- NULL
 noise_pcr_tab <- NULL
 for (i in 1:length(folder_names)){
   
-  data_temp <- get(paste0("metabarlist_",folder_names[[i]]))
+  data_temp <- metablists[[folder_names[i]]]
   
   # Create a table of pcrs quality criteria 
   # noise is identified as FALSE in data_temp, the "!" transforms it to TRUE
@@ -696,7 +762,7 @@ Visualize the effect of the cleaning on the biological signal.
 beta_div <- NULL
 for (i in c(1,3,4,5)){ 
   data_temp_cleaned <- cleaned_metablist[[i]] 
-  data_temp <- get(paste0("metabarlist_",folder_names[i]))
+  data_temp <- metablists[[folder_names[i]]]
   # Get row data only for samples
   tmp <- subset_metabarlist(data_temp, table = "pcrs",
                             indices = data_temp$pcrs$type == "sample")
