@@ -687,13 +687,16 @@ ggsave("figures/noise_pcr.jpg",plotnoisepcr, height = 8, width = 6)
 
 # Clean noise
 
+Choosen threshold of 0.05 for tagjumps
 ```{r}
+chsn_thrshld <- rep("t_0.05",6)
+
 cleaned_metablist <- NULL
 summary_list <- NULL
 sumpipeline_plots <- NULL
 for (i in 1:length(folder_names)){ 
   # Use tag-jump corrected metabarlist with the threshold identified above
-  tmp <- metablists[[i]][["t_0.05"]]
+  tmp <- metablists[[i]][[chsn_thrshld[i]]]
   
   # Subset on MOTUs: we keep motus that are defined as TRUE following the 
   # three criteria below (sum of three TRUE is equal to 3 with the rowSums function)
@@ -725,11 +728,14 @@ for (i in 1:length(folder_names)){
     facet_wrap(~type, scales = "free", ncol = 5) +
     theme(axis.text.x = element_text(angle=45, h=1),
           axis.title = element_blank()) +
-    ggtitle(folder_names[i])
+    ggtitle(paste0(folder_names[i],"_",chsn_thrshld[i]))
   
   cleaned_metablist[[folder_names[i]]] <- data_temp
-}  
+}
+```
 
+
+```{r}
 rm_moglom_comp <- sumpipeline_plots[c(-1,-3)]
 
 sumpipelineplots <- ggarrange(plotlist =  rm_moglom_comp, ncol = 2,nrow = ceiling(length(rm_moglom_comp)/2),common.legend = T, legend = "bottom")
@@ -783,9 +789,10 @@ ggsave("figures/tax_boots_post.jpg",plottaxbootspost, height = 8, width = 6 )
 
 ```{r}
 physeqlists <- NULL
+raw_physeqlists <- NULL
 for (i in c(2,4,5,6)){
 data_temp_cleaned <- cleaned_metablist[[i]] 
-data_temp <- metablists[[folder_names[i]]][["t_0"]]
+data_temp <- metablists[[folder_names[i]]][["raw"]]
 # Get row data only for samples
 tmp <- subset_metabarlist(data_temp, table = "pcrs",
                           indices = data_temp$pcrs$type == "sample")
@@ -803,6 +810,7 @@ TAX <- tax_table(taxmat)
 SAM <- sample_data(sammat)
 rownames(SAM) <- SAM$sample_id
 physeq <- phyloseq(OTU,TAX,SAM)
+raw_physeqlists[[folder_names[i]]] <-  physeq
 
 otumatcl <- as.matrix(tmpcl$reads)
 taxmatcl <- as.matrix(tmpcl$motus)
@@ -822,12 +830,12 @@ Visualize the effect of the cleaning on the biological signal.
 beta_div <- NULL
 for (i in 1:length(physeqlists)){ 
   # Build PCoA ordinations 
-  mds1 <- plot_ordination(physeq,ordinate(physeq,
+  mds1 <- plot_ordination(raw_physeqlists[[i]],ordinate(raw_physeqlists[[i]],
                                           method = "NMDS",
                                           distance = "bray"),
                           type = "taxa",
                           color = "conf_Phylum")
-  mds2 <- plot_ordination(physeqcl,ordinate(physeqcl,
+  mds2 <- plot_ordination(physeqlists[[i]],ordinate(physeqlists[[i]],
                                    method = "NMDS",
                                    distance = "bray"),
                           type = "taxa",
@@ -836,18 +844,18 @@ for (i in 1:length(physeqlists)){
   # Custom colors
   a <- mds1 + labs(color = "Phylum") +
     theme(legend.position = "none") + 
-    ggtitle(paste0("Raw data",folder_names[[i]]))
+    ggtitle(paste0("Raw data",names(physeqlists)[[i]]))
   b <- mds2 + labs(color = "Phylum") +
-    ggtitle(paste0("Clean data",folder_names[[i]]))
+    ggtitle(paste0("Clean data",names(physeqlists)[[i]]))
   
   # Assemble plots
   leg <- get_legend(b + guides(shape=F) + 
                       theme(legend.position = "right", 
                             legend.direction = "vertical"))
-  beta_div[[folder_names[i]]] <-  ggdraw() +
+  beta_div[[names(physeqlists)[i]]] <-  local({ggdraw() +
     draw_plot(a, x=0, y=0, width = 0.4, height = 1) + 
     draw_plot(b + guides(color=F, shape=F), x=0.42, y=0, width = 0.4, height = 1) +
-    draw_grob(leg, x=0.4, y=0)
+    draw_grob(leg, x=0.4, y=0)})
   
 }
 betadiv <- ggarrange(plotlist =  beta_div, ncol = 2,nrow = ceiling(length(beta_div)/2),common.legend = T, legend = "bottom")
