@@ -5,7 +5,8 @@ script to analyse data coming from my metabarcoding processing pipeline (OBIholo
 library(metabaR)
 #  remotes::install_github("LafontRapnouilTristan/EcophyCofog")
 EcophyCofog::Library(c("readr","magrittr","dplyr","stringr","reshape2",
-                       "ggplot2","ggpubr","forcats","cowplot"))
+                       "ggplot2","ggpubr","forcats","cowplot","phyloseq",
+                       "speedyseq"))
 ```
 
 
@@ -86,7 +87,7 @@ prepare data_samples
 list_samples <- list()
 for (i in 1:length(list_reads)){
   
-  list_samples[[i]] <- data.frame(samples=rownames(list_reads[[i]]))
+  list_samples[[i]] <- data.frame(sample_id=rownames(list_reads[[i]]))
   
 } 
 ```
@@ -98,7 +99,7 @@ for (i in 1:length(list_reads)){
   
   colnames(list_filters[[i]]) <- c("project","ID","Tags","PrimeF","PrimeR","diff_doublons","x","Type")
   
-  list_filters[[i]] <- dplyr::filter(list_filters[[i]], !ID %in% c(setdiff(sort(list_filters[[i]]$ID),sort(list_samples[[i]]$samples))))
+  list_filters[[i]] <- dplyr::filter(list_filters[[i]], !ID %in% c(setdiff(sort(list_filters[[i]]$ID),sort(list_samples[[i]]$sample_id))))
   
   list_pcrs[[i]] <- list_samples[[i]] %>% mutate(type=ifelse(grepl("control",arrange(list_filters[[i]],ID)$Type)==T,"control","sample"),
                                                  control_type=ifelse(grepl("control_type=",arrange(list_filters[[i]],ID)$Type)==T,
@@ -112,8 +113,8 @@ for (i in 1:length(list_reads)){
 check names issues
 ```{r}
 for (i in 1:length(list_reads)){
-  print(setdiff(list_samples[[i]]$samples,list_filters[[i]]$ID))
-  print(setdiff(list_filters[[i]]$ID,list_samples[[i]]$samples))
+  print(setdiff(list_samples[[i]]$sample_id,list_filters[[i]]$ID))
+  print(setdiff(list_filters[[i]]$ID,list_samples[[i]]$sample_id))
 } 
 ```
 
@@ -124,10 +125,10 @@ for (i in 1:length(list_reads)){
   rownames(list_motus[[i]]) <- sprintf("MOTU_%05d", 1:nrow(list_motus[[i]]))
   colnames(list_reads[[i]]) <- sprintf("MOTU_%05d", 1:ncol(list_reads[[i]]))
   
-  list_pcrs[[i]] %<>% arrange(samples)
+  list_pcrs[[i]] %<>% arrange(sample_id)
   list_filters[[i]] %<>% arrange(ID)
   
-  rownames(list_pcrs[[i]]) <- list_pcrs[[i]]$samples 
+  rownames(list_pcrs[[i]]) <- list_pcrs[[i]]$sample_id
   colnames(list_motus[[i]])[1] <- "sequence" 
   
   list_pcrs[[i]] %<>% mutate(tag_fwd = str_extract(list_filters[[i]]$Tags,"^\\w+"), # get fwd tag seq
@@ -136,22 +137,84 @@ for (i in 1:length(list_reads)){
                              primer_rev = list_filters[[i]]$PrimeR,
                              plate_col = as.numeric(str_extract(well,"[:digit:]{1,2}")),# numeric für metabaR 
                              plate_row = str_extract(well,"[:upper:]"),
-                             plate= as.numeric(str_extract(plate,"[:digit:]{1,2}"))
+                             plate= as.numeric(str_extract(plate,"[:digit:]{1,2}")),
+                             project = list_filters[[i]]$project
   ) %>%
-    rename(sample_id = samples,
-           plate_no = plate) 
+    rename(plate_no = plate) 
   
   list_pcrs[[i]] %<>%
     mutate(control_type = ifelse(control_type=="ctab","extraction",control_type))%>%
     mutate(control_type = as.factor(control_type))
   
-  rownames(list_samples[[i]]) <- list_samples[[i]]$samples
+  rownames(list_samples[[i]]) <- list_samples[[i]]$sample_id
   
 }
 ```
 
+# Add sample biological information
 
-generate metabarlists
+
+Add info on my samples, has to be improved but i'll see when i'll get my data.
+```{r}
+list_samples[[1]] %<>% mutate(organ= ifelse(grepl("_F",list_samples[[1]]$sample_id)==T,"LEAVES",
+                                                               ifelse(grepl("_R",list_samples[[1]]$sample_id)==T,"ROOTS",
+                                                                      ifelse(grepl("_GR",list_samples[[1]]$sample_id)==T,"SEEDS","SOIL"))))
+
+list_samples[[2]] %<>% 
+  mutate(organ = ifelse( grepl("(_Rp)|([0-9]{3}R)",list_samples[[2]]$sample_id)==T,"ROOTS",
+                         ifelse( grepl("FL",list_samples[[2]]$sample_id)==T,"FLOWER",
+                                 ifelse( grepl("FE",list_samples[[2]]$sample_id)==T,"LEAVES",
+                                         ifelse( grepl("FR",list_samples[[2]]$sample_id)==T,"FRUIT",
+                                                 ifelse( grepl("RJ",list_samples[[2]]$sample_id)==T,"RESHOOT",
+                                                         ifelse( grepl("GR",list_samples[[2]]$sample_id)==T,"SEEDS",
+                                                                 ifelse( grepl("ED",list_samples[[2]]$sample_id)==T,"ENDOPHYTES",
+                                                                         ifelse( grepl("EP",list_samples[[2]]$sample_id)==T,"EPIPHYTES",
+                                                                                 ifelse( grepl("[0-9]{3}(S|C)",list_samples[[2]]$sample_id)==T,"RHIZOSPHERE",
+                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[2]]$sample_id)==T,"CONTROL","SOIL")
+                                                                                 )))))))))) %>%
+  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("(_Rp)|([0-9]{3}R)",list_samples[[2]]$sample_id)==T,"INT_M"))
+
+list_samples[[3]] %<>% 
+  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",list_samples[[3]]$sample_id)==T,"ROOTS",
+                         ifelse( grepl("FL",list_samples[[3]]$sample_id)==T,"FLOWER",
+                                 ifelse( grepl("FE",list_samples[[3]]$sample_id)==T,"LEAVES",
+                                         ifelse( grepl("FR",list_samples[[3]]$sample_id)==T,"FRUIT",
+                                                 ifelse( grepl("RJ",list_samples[[3]]$sample_id)==T,"RESHOOT",
+                                                         ifelse( grepl("GR",list_samples[[3]]$sample_id)==T,"SEEDS",
+                                                                 ifelse( grepl("ED",list_samples[[3]]$sample_id)==T,"ENDOPHYTES",
+                                                                         ifelse( grepl("EP",list_samples[[3]]$sample_id)==T,"EPIPHYTES",
+                                                                                 ifelse( grepl("[0-9]{3}(S|C)",list_samples[[3]]$sample_id)==T,"RHIZOSPHERE",
+                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[3]]$sample_id)==T,"CONTROL","SOIL")
+                                                                                 )))))))))) %>%
+  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("(_Rp)|([0-9]{3}R)",list_samples[[2]]$sample_id)==T,"INT_M"))
+
+list_samples[[4]] %<>% 
+  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",list_samples[[4]]$sample_id)==T,"ROOTS",
+                         ifelse( grepl("FL",list_samples[[4]]$sample_id)==T,"FLOWER",
+                                 ifelse( grepl("FE",list_samples[[4]]$sample_id)==T,"LEAVES",
+                                         ifelse( grepl("FR",list_samples[[4]]$sample_id)==T,"FRUIT",
+                                                 ifelse( grepl("RJ",list_samples[[4]]$sample_id)==T,"RESHOOT",
+                                                         ifelse( grepl("GR",list_samples[[4]]$sample_id)==T,"SEEDS",
+                                                                 ifelse( grepl("ED",list_samples[[4]]$sample_id)==T,"ENDOPHYTES",
+                                                                         ifelse( grepl("EP",list_samples[[4]]$sample_id)==T,"EPIPHYTES",
+                                                                                 ifelse( grepl("[0-9]{3}(S|C)",list_samples[[4]]$sample_id)==T,"RHIZOSPHERE",
+                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[4]]$sample_id)==T,"CONTROL","SOIL")
+                                                                                 )))))))))) %>%
+  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("(_Rp)|([0-9]{3}R)",list_samples[[2]]$sample_id)==T,"INT_M"))
+
+list_samples[[5]] %<>% 
+  mutate(organ= ifelse(grepl("_F",list_samples[[5]]$sample_id)==T,"LEAVES",
+                       ifelse(grepl("_R",list_samples[[5]]$sample_id)==T,"ROOTS","CONTROL")))
+
+
+list_samples[[6]] %<>%
+  mutate(organ= ifelse(grepl("_F",list_samples[[6]]$sample_id)==T,"LEAVES",
+                       ifelse(grepl("_R",list_samples[[6]]$sample_id)==T,"ROOTS","CONTROL")))
+
+```
+
+# Generate metabarlists
+
 ```{r}
 metablists <- NULL
 
@@ -163,13 +226,6 @@ for (i in 1:length(folder_names)){
                                                                samples=list_samples[[i]])
 }
 ```
-
-rm temp_files 
-```{r}
-toremove <- grep("folder_names|^metab", ls(), invert=T, value=T)
-rm(list = c(toremove, "toremove"))
-```
-
 
 Check if and which list have empty pcrs and motus.
 ```{r}
@@ -189,66 +245,11 @@ for (i in 1:length(folder_names)){
 } 
 ```
 
-
-
-# Add sample biological information
-
-
-Add info on my samples, has to be improved but i'll see when i'll get my data.
+rm temp_files 
 ```{r}
-# metabarlist_comp_mother_16s$samples <- metabarlist_comp_mother_16s$samples
-# metabarlist_comp_mother_16s$samples %<>% mutate(organ= ifelse(grepl("_F",metabarlist_comp_mother_16s$samples$samples)==T,"LEAVES",
-#                                                               ifelse(grepl("_R",metabarlist_comp_mother_16s$samples$samples)==T,"ROOTS",
-#                                                                      ifelse(grepl("_GR",metabarlist_comp_mother_16s$samples$samples)==T,"SEEDS","SOIL"))))
-
-metablists[[folder_names[1]]]$samples %<>% 
-  mutate(organ = ifelse( grepl("(_Rp)|([0-9]{3}R)",metablists[[folder_names[1]]]$samples$samples)==T,"ROOTS",
-                         ifelse( grepl("FL",metablists[[folder_names[1]]]$samples$samples)==T,"FLOWER",
-                                 ifelse( grepl("FE",metablists[[folder_names[1]]]$samples$samples)==T,"LEAVES",
-                                         ifelse( grepl("FR",metablists[[folder_names[1]]]$samples$samples)==T,"FRUIT",
-                                                 ifelse( grepl("RJ",metablists[[folder_names[1]]]$samples$samples)==T,"RESHOOT",
-                                                         ifelse( grepl("GR",metablists[[folder_names[1]]]$samples$samples)==T,"SEEDS",
-                                                                 ifelse( grepl("ED",metablists[[folder_names[1]]]$samples$samples)==T,"ENDOPHYTES",
-                                                                         ifelse( grepl("EP",metablists[[folder_names[1]]]$samples$samples)==T,"EPIPHYTES",
-                                                                                 ifelse( grepl("[0-9]{3}(S|C)",metablists[[folder_names[1]]]$samples$samples)==T,"RHIZOSPHERE",
-                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",metablists[[folder_names[1]]]$samples$samples)==T,"CONTROL","SOIL")
-                                                                                 ))))))))))
-
-metablists[[folder_names[2]]]$samples %<>% 
-  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",metablists[[folder_names[2]]]$samples$samples)==T,"ROOTS",
-                         ifelse( grepl("FL",metablists[[folder_names[2]]]$samples$samples)==T,"FLOWER",
-                                 ifelse( grepl("FE",metablists[[folder_names[2]]]$samples$samples)==T,"LEAVES",
-                                         ifelse( grepl("FR",metablists[[folder_names[2]]]$samples$samples)==T,"FRUIT",
-                                                 ifelse( grepl("RJ",metablists[[folder_names[2]]]$samples$samples)==T,"RESHOOT",
-                                                         ifelse( grepl("GR",metablists[[folder_names[2]]]$samples$samples)==T,"SEEDS",
-                                                                 ifelse( grepl("ED",metablists[[folder_names[2]]]$samples$samples)==T,"ENDOPHYTES",
-                                                                         ifelse( grepl("EP",metablists[[folder_names[2]]]$samples$samples)==T,"EPIPHYTES",
-                                                                                 ifelse( grepl("[0-9]{3}(S|C)",metablists[[folder_names[2]]]$samples$samples)==T,"RHIZOSPHERE",
-                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",metablists[[folder_names[2]]]$samples$samples)==T,"CONTROL","SOIL")
-                                                                                 ))))))))))
-
-metablists[[folder_names[4]]]$samples %<>% 
-  mutate(organ= ifelse(grepl("_F",metablists[[folder_names[4]]]$samples$samples)==T,"LEAVES",
-                       ifelse(grepl("_R",metablists[[folder_names[4]]]$samples$samples)==T,"ROOTS","CONTROL")))
-
-
-metablists[[folder_names[3]]]$samples %<>% 
-  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",metablists[[folder_names[3]]]$samples$samples)==T,"ROOTS",
-                         ifelse( grepl("FL",metablists[[folder_names[3]]]$samples$samples)==T,"FLOWER",
-                                 ifelse( grepl("FE",metablists[[folder_names[3]]]$samples$samples)==T,"LEAVES",
-                                         ifelse( grepl("FR",metablists[[folder_names[3]]]$samples$samples)==T,"FRUIT",
-                                                 ifelse( grepl("RJ",metablists[[folder_names[3]]]$samples$samples)==T,"RESHOOT",
-                                                         ifelse( grepl("GR",metablists[[folder_names[3]]]$samples$samples)==T,"SEEDS",
-                                                                 ifelse( grepl("ED",metablists[[folder_names[3]]]$samples$samples)==T,"ENDOPHYTES",
-                                                                         ifelse( grepl("EP",metablists[[folder_names[3]]]$samples$samples)==T,"EPIPHYTES",
-                                                                                 ifelse( grepl("[0-9]{3}(S|C)",metablists[[folder_names[3]]]$samples$samples)==T,"RHIZOSPHERE",
-                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",metablists[[folder_names[3]]]$samples$samples)==T,"CONTROL","SOIL")
-                                                                                 ))))))))))
-
-metablists[[folder_names[5]]]$samples %<>%
-  mutate(organ= ifelse(grepl("_F",metablists[[folder_names[5]]]$samples$samples)==T,"LEAVES",
-                       ifelse(grepl("_R",metablists[[folder_names[5]]]$samples$samples)==T,"ROOTS","CONTROL")))
-
+toremove <- grep("folder_names|^metab", ls(), invert=T, value=T)
+rm(list = c(toremove, "toremove"))
+save.image("data/raw_metablists.RData")
 ```
 
 
@@ -322,7 +323,7 @@ for (i in 1:length(folder_names)){
   # Identifying extraction contaminants
   data_temp <- contaslayer(data_temp, 
                            method = "max",
-                           control_types = "extraction",
+                           control_types = c("pcr","extraction"),
                            output_col = "not_an_extraction_conta")
   
   # Overwrite 
@@ -394,6 +395,12 @@ contaprop <- ggarrange(plotlist =  conta_prop, ncol = 2,nrow = ceiling(length(fo
 ggsave("figures/conta_prop.jpg",contaprop, height = 8, width = 6 )
 ```
 
+
+Comp_mother & mother_glom are poor datasets. 
+Cannot be used.
+Mother 16s and ITS seems to be ok with higher contaminant proportions in controls but still really low (~1%) which is worrying.
+Seedling show kind of similar patterns but with less differences which is really worrying.
+
 flag non-target motus (ie other than fungi or bacteria, very unlikely cuz only fungal and bacterial databases).
 ```{r}
 non_target_prop <- NULL
@@ -420,6 +427,9 @@ for (i in 1:length(folder_names)){
   metablists[[folder_names[i]]] <- data_temp
 }
 ```
+
+
+
 
 investigate poorly assigned sequence.
 Need to set a confidence level or a taxonomic level were I reject either the assignation or even the sequence.
@@ -455,16 +465,16 @@ for (i in 1:length(folder_names)){
   
   
   # Tag sequences not assigned below Kingdom
-  data_temp$motus %<>% mutate(poor_assign = ifelse(is.na(Phylum)==T,T,F))
+  data_temp$motus %<>% mutate(good_assign = ifelse(is.na(Phylum)==T,F,T))
   # Create a "confident taxonomy" (boots >= 80)
   colnames_tmp <- c(gsub("_boots","",grep("boots",colnames(data_temp$motus), value = T)))
   
-  for(i in 1:length(colnames_tmp)){
+  for(j in 1:length(colnames_tmp)){
     
-    col <- match(colnames_tmp[i],colnames(data_temp$motus))
+    col <- match(colnames_tmp[j],colnames(data_temp$motus))
     a <- data_temp$motus[,c(col,col+length(colnames_tmp))]
     conf <- data.frame(ifelse(a[,2]<80,NA,a[,1]))
-    colnames(conf) <- paste0("conf_",colnames_tmp[i])
+    colnames(conf) <- paste0("conf_",colnames_tmp[j])
     data_temp$motus <- cbind(data_temp$motus,conf)
   }
   # Overwrite
@@ -494,10 +504,13 @@ for (i in 1:length(folder_names)){
     theme(panel.grid = element_blank())+
     ggtitle(folder_names[[i]])
   
-  
+  # Tag as ok pcrs with more than 1000 reads
   data_temp$pcrs$seqdepth_ok <- ifelse(data_temp$pcrs$nb_reads < 1e3, F, T)
-  assign(paste0("metabarlist_",folder_names[[i]]),data_temp)
   
+  # Overwrite
+  metablists[[folder_names[i]]] <- data_temp 
+  
+  # proportion of innaceptable pcrs seq depth, control excluded!!
   seq_depth_tab[[folder_names[i]]] <- table(data_temp$pcrs$seqdepth_ok[data_temp$pcrs$type=="sample"]) /
     nrow(data_temp$pcrs[data_temp$pcrs$type=="sample",])
   print(seq_depth_tab[[i]])
@@ -512,7 +525,7 @@ Test different thresholds to identify tagjumps.
 Ideally we maximize a drop in MOTUs AND Reads in pcr negative controls while mainly losing MOTUs in samples?
 ```{r}
 plot_tag_jump <- NULL
-metablists <- NULL
+
 for (i in 1:length(folder_names)){
   
   
@@ -567,16 +580,18 @@ ggsave("figures/tag_jump.jpg",plottagjump, height = 12, width = 13 )
 
 summarize noise in motus
 ```{r}
+# SET THRESHOLD: test 0.05
+
 plot_noise_motu <- NULL
 motu_noise_tab <- NULL
 for (i in 1:length(folder_names)){
   
-  data_temp <- metablists[[folder_names[i]]]
+  data_temp <- metablists[[folder_names[i]]]["t_0.05"][[1]]
   
   # Create a table of MOTUs quality criteria 
   # noise is identified as FALSE in data_temp, the "!" transforms it to TRUE 
-  motus.qual <- !data_temp$motus[,c("not_an_extraction_conta", "target_taxon")] #not_degraded 
-  colnames(motus.qual) <- c("extraction_conta", "untargeted_taxon") #degraded_seq  
+  motus.qual <- !data_temp$motus[,c("not_an_extraction_conta", "target_taxon","good_assign")] #not_degraded 
+  colnames(motus.qual) <- c("extraction_conta", "untargeted_taxon","poorly_assigned") #degraded_seq  
   
   # Proportion of MOTUs potentially artifactual (TRUE) based on the criteria used
   motu_noise_tab[[folder_names[i]]]$motus <- prop.table(table(apply(motus.qual, 1, sum) > 0))
@@ -596,11 +611,18 @@ for (i in 1:length(folder_names)){
   tmp.motus <- as.data.frame(gsub("^$", "not_artefactual", tmp.motus))
   colnames(tmp.motus) <-  "artefact_type"
   
+  a <- unlist(combn(c("extraction_conta", "untargeted_taxon","poorly_assigned"),1,simplify = F))
+  b <- c("extraction_conta|untargeted_taxon","extraction_conta|poorly_assigned","untargeted_taxon|poorly_assigned")
+  c <- BBmisc::collapse(unlist(combn(c("extraction_conta", "untargeted_taxon","poorly_assigned"),3,simplify = F)),sep = "|")
+  myColors <- RColorBrewer::brewer.pal(8,"Set1")
+  names(myColors) <- levels(as.factor(c(a,b,c,"not_artefactual")))
+  colScale <- scale_fill_manual(name = "grp",values = myColors)
+  
   plot_noise_motu[[folder_names[i]]] <- ggplot(tmp.motus, aes(x=1, fill=artefact_type)) +
     geom_bar() +  xlim(0, 2) +
     labs(fill="Artifact type") + 
     coord_polar(theta="y") + theme_void() + 
-    scale_fill_brewer(palette = "Set3") + 
+    colScale + 
     theme(legend.direction = "vertical") + 
     ggtitle(folder_names[i])
 }
@@ -615,7 +637,7 @@ plot_noise_pcr <- NULL
 noise_pcr_tab <- NULL
 for (i in 1:length(folder_names)){
   
-  data_temp <- metablists[[folder_names[i]]]
+  data_temp <- metablists[[folder_names[i]]]["t_0.05"][[1]]
   
   # Create a table of pcrs quality criteria 
   # noise is identified as FALSE in data_temp, the "!" transforms it to TRUE
@@ -639,11 +661,17 @@ for (i in 1:length(folder_names)){
   
   colnames(tmp.pcrs) <- "artefact_type"
   
+  a <- unlist(combn(c("high_contamination_level", "low_seqdepth"),1,simplify = F))
+  b <- c("high_contamination_level|low_seqdepth")
+  myColors <- RColorBrewer::brewer.pal(4,"Set1")
+  names(myColors) <- levels(as.factor(c(a,b,"not_artefactual")))
+  colScale <- scale_fill_manual(name = "grp",values = myColors)
+  
   plot_noise_pcr[[folder_names[i]]] <- ggplot(tmp.pcrs, aes(x=1, fill=artefact_type)) +
     geom_bar() +  xlim(0, 2) +
     labs(fill="Artifact type") + 
     coord_polar(theta="y") + theme_void() + 
-    scale_fill_brewer(palette = "Set3") + 
+    colScale +
     theme(legend.direction = "vertical") +
     ggtitle(folder_names[i])
   
@@ -669,7 +697,7 @@ summary_list <- NULL
 sumpipeline_plots <- NULL
 for (i in 1:length(folder_names)){ 
   # Use tag-jump corrected metabarlist with the threshold identified above
-  tmp <- metablists[[i]][["t_0.01"]]
+  tmp <- metablists[[i]][["t_0.05"]]
   
   # Subset on MOTUs: we keep motus that are defined as TRUE following the 
   # three criteria below (sum of three TRUE is equal to 3 with the rowSums function)
@@ -706,9 +734,9 @@ for (i in 1:length(folder_names)){
   cleaned_metablist[[folder_names[i]]] <- data_temp
 }  
 
-rm_moglom <- sumpipeline_plots[c(-2)]
+rm_moglom_comp <- sumpipeline_plots[c(-1,-3)]
 
-sumpipelineplots <- ggarrange(plotlist =  rm_moglom, ncol = 2,nrow = ceiling(length(rm_moglom)/2),common.legend = T, legend = "bottom")
+sumpipelineplots <- ggarrange(plotlist =  rm_moglom_comp, ncol = 2,nrow = ceiling(length(rm_moglom_comp)/2),common.legend = T, legend = "bottom")
 
 ggsave("figures/sum_pipeline.jpg",sumpipelineplots, height = 6, width = 6)
 ```
@@ -754,33 +782,67 @@ plottaxbootspost <- ggarrange(plotlist =  plot_tax_boots_post, ncol = 2,nrow = c
 ggsave("figures/tax_boots_post.jpg",plottaxbootspost, height = 8, width = 6 )
 ```
 
+# Generate physeqlists
 
 
-Visualize the effect of the cleaning on the biological signal.
 ```{r}
+physeqlists <- NULL
+for (i in c(2,4,5,6)){
+data_temp_cleaned <- cleaned_metablist[[i]] 
+data_temp <- metablists[[folder_names[i]]][["t_0"]]
+# Get row data only for samples
+tmp <- subset_metabarlist(data_temp, table = "pcrs",
+                          indices = data_temp$pcrs$type == "sample")
 
+tmpcl <- subset_metabarlist(data_temp_cleaned, table = "pcrs",
+                            indices = data_temp_cleaned$pcrs$type == "sample")
+
+# Format for phyloseq
+
+otumat <- as.matrix(tmp$reads)
+taxmat <- as.matrix(tmp$motus)
+sammat <- left_join(tmp$samples,tmp$pcrs)
+OTU <- otu_table(otumat, taxa_are_rows = F)
+TAX <- tax_table(taxmat)
+SAM <- sample_data(sammat)
+rownames(SAM) <- SAM$sample_id
+physeq <- phyloseq(OTU,TAX,SAM)
+
+otumatcl <- as.matrix(tmpcl$reads)
+taxmatcl <- as.matrix(tmpcl$motus)
+sammatcl <- left_join(tmpcl$samples,tmpcl$pcrs)
+OTUcl <- otu_table(otumatcl, taxa_are_rows = F)
+TAXcl <- tax_table(taxmatcl)
+SAMcl <- sample_data(sammatcl)
+rownames(SAMcl) <- SAMcl$sample_id
+physeqcl <- phyloseq(OTUcl,TAXcl,SAMcl)
+
+physeqlists[[folder_names[i]]] <-  physeqcl
+}
+```
+Visualize the effect of the cleaning on the biological signal.
+
+```{r}
 beta_div <- NULL
-for (i in c(1,3,4,5)){ 
-  data_temp_cleaned <- cleaned_metablist[[i]] 
-  data_temp <- metablists[[folder_names[i]]]
-  # Get row data only for samples
-  tmp <- subset_metabarlist(data_temp, table = "pcrs",
-                            indices = data_temp$pcrs$type == "sample")
-  
+for (i in 1:length(physeqlists)){ 
   # Build PCoA ordinations 
-  mds1 <- check_pcr_repl(tmp,
-                         groups =  as.factor(tmp$samples$organ),
-                         replicates = as.factor(tmp$samples$organ))
-  mds2 <- check_pcr_repl(data_temp_cleaned,
-                         groups =  as.factor(data_temp_cleaned$samples$organ),
-                         replicates = as.factor(data_temp_cleaned$samples$organ))
+  mds1 <- plot_ordination(physeq,ordinate(physeq,
+                                          method = "NMDS",
+                                          distance = "bray"),
+                          type = "taxa",
+                          color = "conf_Phylum")
+  mds2 <- plot_ordination(physeqcl,ordinate(physeqcl,
+                                   method = "NMDS",
+                                   distance = "bray"),
+                          type = "taxa",
+                          color = "conf_Phylum")
   
   # Custom colors
-  a <- mds1 + labs(color = "organ") +
+  a <- mds1 + labs(color = "Phylum") +
     theme(legend.position = "none") + 
-    ggtitle("Raw data")
-  b <- mds2 + labs(color = "organ") +
-    ggtitle("Clean data")
+    ggtitle(paste0("Raw data",folder_names[[i]]))
+  b <- mds2 + labs(color = "Phylum") +
+    ggtitle(paste0("Clean data",folder_names[[i]]))
   
   # Assemble plots
   leg <- get_legend(b + guides(shape=F) + 
@@ -789,25 +851,26 @@ for (i in c(1,3,4,5)){
   beta_div[[folder_names[i]]] <-  ggdraw() +
     draw_plot(a, x=0, y=0, width = 0.4, height = 1) + 
     draw_plot(b + guides(color=F, shape=F), x=0.42, y=0, width = 0.4, height = 1) +
-    draw_grob(leg, x=0.4, y=0) +
-    ggtitle(folder_names[[i]])
+    draw_grob(leg, x=0.4, y=0)
   
 }
 betadiv <- ggarrange(plotlist =  beta_div, ncol = 2,nrow = ceiling(length(beta_div)/2),common.legend = T, legend = "bottom")
 
-ggsave("figures/betadiv.jpg",betadiv, height = 12, width = 18 )
+ggsave("figures/betadiv.jpg",betadiv, height = 12, width = 30 )
 ```
 
 
 clean environment
 ```{r}
-toremove <- grep("^cleaned|folder_names|^metab", ls(), invert=T, value=T)
+toremove <- grep("^cleaned|folder_names|^metab|physeqlists", ls(), invert=T, value=T)
 rm(list = c(toremove, "toremove"))
+save.image("data/cl_metablists_physeq.RData")
 ```
 
 
 # Grouping in relevant datasets for papers
 
+ITS and 16s datasets will be analysed separately
 
 ## Paper 1 - mother leaves
 
@@ -816,11 +879,78 @@ Runs containing mother leaf samples:
   - mother_16s
   - mother_ITS2
   - mother_glom (out, no samples passed pipeline)
-  - comp_mother_16s
+  - comp_mother_16s (out, no samples passed pipeline)
 ```{r}
 # First filter non mother leaf samples
 
-# Second merge Fungi AND Bacterial communities?
+sub_mother_16s <- subset_samples(physeqlists$mother_16s, organ == "LEAVES" & project == "HOLOBROM_MERES")
+sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" & project == "HOLOBROM_MERES")
+
+ntaxa(sub_mother_16s)
+ntaxa(sub_mother_ITS)
+# Second add trtmt info?
+
+sub_mother_16s %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
+  mutate_sample_data(trmt = ifelse(ID <16,"DP",
+                                   ifelse(between(ID,16,30), "DPS",
+                                          ifelse(between(ID,31,45),"DSP",
+                                                 ifelse(between(ID,46,60),"WP",
+                                                        ifelse(between(ID,61,75), "WSP", "WPS")
+                                                 )))))
+
+sub_mother_ITS %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
+  mutate_sample_data(trmt = ifelse(ID <16,"DP",
+                                   ifelse(between(ID,16,30), "DPS",
+                                          ifelse(between(ID,31,45),"DSP",
+                                                 ifelse(between(ID,46,60),"WP",
+                                                        ifelse(between(ID,61,75), "WSP", "WPS")
+                                                 )))))
+```
+
+```{r}
+# Build PCoA ordinations 
+mds1 <- plot_ordination(sub_mother_16s,ordinate(sub_mother_16s,
+                                                method = "NMDS",
+                                                distance = "bray"),
+                        type = "samples",
+                        color = "trmt")
+
+# Custom colors
+a1 <- mds1 + labs(color = "trtmt") +
+  theme(legend.position = "n")+ 
+  ggtitle("sub_mother_16s")
+
+
+# Assemble plots
+leg1 <- get_legend(a1 + guides(shape=F) + 
+                    theme(legend.position = "right", 
+                          legend.direction = "vertical"))
+ggdraw() +
+  draw_plot(a1, x=0, y=0, width = 0.8, height = 1) + 
+  draw_grob(leg1, x=0.4, y=0)
+
+```
+```{r}
+# Build PCoA ordinations 
+mds2 <- plot_ordination(sub_mother_ITS,ordinate(sub_mother_ITS,
+                                                method = "NMDS",
+                                                distance = "bray"),
+                        type = "samples",
+                        color = "trmt")
+
+# Custom colors
+a2 <- mds2 + labs(color = "trtmt") +
+  theme(legend.position = "n") + 
+  ggtitle("sub_mother_ITS")
+
+
+# Assemble plots
+leg2 <- get_legend(a2 + guides(shape=F) + 
+                    theme(legend.position = "right", 
+                          legend.direction = "vertical"))
+ggdraw() +
+  draw_plot(a2, x=0, y=0, width = 0.8, height = 1) + 
+  draw_grob(leg2, x=0.4, y=0)
 
 ```
 
@@ -834,12 +964,161 @@ Runs containing root and leaf samples:
   - comp_mother_16s
   - seedling_ITS2
   - seedling_16s
+  
+### Mother
 ```{r}
 # Filter out non target samples
 
+sub_mother_16s <- subset_samples(physeqlists$mother_16s, (organ == "LEAVES" | organ == "ROOTS") & project == "HOLOBROM_MERES")
+sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" | organ == "ROOTS" & project == "HOLOBROM_MERES")
+
+sub_mother_16s %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
+  mutate_sample_data(trmt = ifelse(ID <16,"DP",
+                                   ifelse(between(ID,16,30), "DPS",
+                                          ifelse(between(ID,31,45),"DSP",
+                                                 ifelse(between(ID,46,60),"WP",
+                                                        ifelse(between(ID,61,75), "WSP", "WPS")
+                                                 ))))) %>%
+  mutate_sample_data(water = ifelse(ID<46,"D","W"))
+
+sub_mother_ITS %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
+  mutate_sample_data(trmt = ifelse(ID <16,"DP",
+                                   ifelse(between(ID,16,30), "DPS",
+                                          ifelse(between(ID,31,45),"DSP",
+                                                 ifelse(between(ID,46,60),"WP",
+                                                        ifelse(between(ID,61,75), "WSP", "WPS")
+                                                 ))))) %>%
+  mutate_sample_data(water = ifelse(ID<46,"D","W"))
+
+sub_mother_16s <- subset_samples(sub_mother_16s, water == "W")
+sub_mother_ITS <- subset_samples(sub_mother_ITS, water == "W")
 # Merge different primers
 ```
 
+```{r}
+# Build PCoA ordinations 
+mds1 <- plot_ordination(sub_mother_16s,ordinate(sub_mother_16s,
+                                                method = "NMDS",
+                                                distance = "bray"),
+                        type = "samples",
+                        color = "trmt",
+                        shape = "organ")
+
+# Custom colors
+a1 <- mds1 + labs(color = "trtmt",
+                  shape = "organ") +
+  theme(legend.position = "n")+ 
+  ggtitle("sub_mother_16s")
+
+
+# Assemble plots
+leg1 <- get_legend(a1  + 
+                    theme(legend.position = "right", 
+                          legend.direction = "vertical"))
+ggdraw() +
+  draw_plot(a1, x=0, y=0, width = 0.8, height = 1) + 
+  draw_grob(leg1, x=0.4, y=0)
+
+```
+
+```{r}
+# Build PCoA ordinations 
+mds2 <- plot_ordination(sub_mother_ITS,ordinate(sub_mother_ITS,
+                                                method = "NMDS",
+                                                distance = "bray"),
+                        type = "samples",
+                        color = "trmt",
+                        shape = "organ")
+
+# Custom colors
+a2 <- mds2 + labs(color = "trtmt",
+                  shape = "organ") +
+  theme(legend.position = "n")+ 
+  ggtitle("sub_mother_ITS")
+
+
+# Assemble plots
+leg2 <- get_legend(a2  + 
+                    theme(legend.position = "right", 
+                          legend.direction = "vertical"))
+ggdraw() +
+  draw_plot(a2, x=0, y=0, width = 0.8, height = 1) + 
+  draw_grob(leg2, x=0.4, y=0)
+
+```
+
+## Seedling
+
+```{r}
+# Filter out non target samples
+
+sub_seedling_16s <- subset_samples(physeqlists$seedling_16s, organ == "LEAVES" | organ =="ROOTS") %>% 
+  mutate_sample_data(mo_ID = str_extract(samples,"^\\d+")) %>%
+  mutate_sample_data(trmt_mo = ifelse(between(mo_ID,46,60),"WP",
+                                   ifelse(between(mo_ID,61,75), "WSP", "WPS")),
+                     trtmt = sapply(strsplit(as.character(samples), "_"), function(x) x[[1]][2]),
+                     rep = sapply(strsplit(as.character(samples), "_"), function(x) x[[1]][3]))
+
+
+sub_seedling_ITS <- subset_samples(physeqlists$seedling_ITS2, organ == "LEAVES" | organ =="ROOTS") %>% 
+  mutate_sample_data(mo_ID = str_extract(samples,"^\\d+")) %>%
+  mutate_sample_data(trmt_mo = ifelse(between(mo_ID,46,60),"WP",
+                                   ifelse(between(mo_ID,61,75), "WSP", "WPS")),
+                     trtmt = sapply(strsplit(as.character(samples), "_"), function(x) x[[1]][2]),
+                     rep = sapply(strsplit(as.character(samples), "_"), function(x) x[[1]][3]))
+```
+
+```{r}
+# Build PCoA ordinations 
+mds1 <- plot_ordination(sub_seedling_16s,ordinate(sub_seedling_16s,
+                                                method = "NMDS",
+                                                distance = "bray"),
+                        type = "samples",
+                        color = "trtmt",
+                        shape = "organ")
+
+# Custom colors
+a1 <- mds1 + labs(color = "trtmt",
+                  shape = "organ") +
+  theme(legend.position = "n")+ 
+  ggtitle("sub_seedling_16s")
+
+
+# Assemble plots
+leg1 <- get_legend(a1  + 
+                    theme(legend.position = "right", 
+                          legend.direction = "vertical"))
+ggdraw() +
+  draw_plot(a1, x=0, y=0, width = 0.8, height = 1) + 
+  draw_grob(leg1, x=0.4, y=0)
+
+```
+
+```{r}
+# Build PCoA ordinations 
+mds2 <- plot_ordination(sub_mother_ITS,ordinate(sub_mother_ITS,
+                                                method = "NMDS",
+                                                distance = "bray"),
+                        type = "samples",
+                        color = "trmt",
+                        shape = "organ")
+
+# Custom colors
+a2 <- mds2 + labs(color = "trtmt",
+                  shape = "organ") +
+  theme(legend.position = "n")+ 
+  ggtitle("sub_mother_ITS")
+
+
+# Assemble plots
+leg2 <- get_legend(a2  + 
+                    theme(legend.position = "right", 
+                          legend.direction = "vertical"))
+ggdraw() +
+  draw_plot(a2, x=0, y=0, width = 0.8, height = 1) + 
+  draw_grob(leg2, x=0.4, y=0)
+
+```
 
 # Preping for phyloseq
 
