@@ -158,7 +158,8 @@ Add info on my samples, has to be improved but i'll see when i'll get my data.
 ```{r}
 list_samples[[1]] %<>% mutate(organ= ifelse(grepl("_F",list_samples[[1]]$sample_id)==T,"LEAVES",
                                                                ifelse(grepl("_R",list_samples[[1]]$sample_id)==T,"ROOTS",
-                                                                      ifelse(grepl("_GR",list_samples[[1]]$sample_id)==T,"SEEDS","SOIL"))))
+                                                                      ifelse(grepl("_GR",list_samples[[1]]$sample_id)==T,"SEEDS","SOIL")))) %>%
+  mutate(project = ifelse(organ =="SEEDS","HOLOBROM_SEEDS","HOLOBROM_MERES"))
 
 list_samples[[2]] %<>% 
   mutate(organ = ifelse( grepl("(_Rp)|([0-9]{3}R)",list_samples[[2]]$sample_id)==T,"ROOTS",
@@ -172,7 +173,7 @@ list_samples[[2]] %<>%
                                                                                  ifelse( grepl("[0-9]{3}(S|C)",list_samples[[2]]$sample_id)==T,"RHIZOSPHERE",
                                                                                          ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[2]]$sample_id)==T,"CONTROL","SOIL")
                                                                                  )))))))))) %>%
-  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("(_Rp)|([0-9]{3}R)",list_samples[[2]]$sample_id)==T,"INT_M"))
+  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{3}R",list_samples[[2]]$sample_id)==T,"INT_M",list_pcrs[[2]]$project))
 
 list_samples[[3]] %<>% 
   mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",list_samples[[3]]$sample_id)==T,"ROOTS",
@@ -186,7 +187,7 @@ list_samples[[3]] %<>%
                                                                                  ifelse( grepl("[0-9]{3}(S|C)",list_samples[[3]]$sample_id)==T,"RHIZOSPHERE",
                                                                                          ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[3]]$sample_id)==T,"CONTROL","SOIL")
                                                                                  )))))))))) %>%
-  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("(_Rp)|([0-9]{3}R)",list_samples[[2]]$sample_id)==T,"INT_M"))
+  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{3}R",list_samples[[3]]$sample_id)==T,"INT_M",list_pcrs[[3]]$project))
 
 list_samples[[4]] %<>% 
   mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",list_samples[[4]]$sample_id)==T,"ROOTS",
@@ -200,16 +201,18 @@ list_samples[[4]] %<>%
                                                                                  ifelse( grepl("[0-9]{3}(S|C)",list_samples[[4]]$sample_id)==T,"RHIZOSPHERE",
                                                                                          ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[4]]$sample_id)==T,"CONTROL","SOIL")
                                                                                  )))))))))) %>%
-  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("(_Rp)|([0-9]{3}R)",list_samples[[2]]$sample_id)==T,"INT_M"))
+  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{3}R",list_samples[[4]]$sample_id)==T,"INT_M",list_pcrs[[4]]$project))
 
 list_samples[[5]] %<>% 
   mutate(organ= ifelse(grepl("_F",list_samples[[5]]$sample_id)==T,"LEAVES",
-                       ifelse(grepl("_R",list_samples[[5]]$sample_id)==T,"ROOTS","CONTROL")))
+                       ifelse(grepl("_R",list_samples[[5]]$sample_id)==T,"ROOTS","CONTROL")),
+         project= "HOLOBROM_PLANTULES")
 
 
 list_samples[[6]] %<>%
   mutate(organ= ifelse(grepl("_F",list_samples[[6]]$sample_id)==T,"LEAVES",
-                       ifelse(grepl("_R",list_samples[[6]]$sample_id)==T,"ROOTS","CONTROL")))
+                       ifelse(grepl("_R",list_samples[[6]]$sample_id)==T,"ROOTS","CONTROL")),
+         project= "HOLOBROM_PLANTULES")
 
 ```
 
