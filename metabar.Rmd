@@ -587,7 +587,7 @@ plot_noise_motu <- NULL
 motu_noise_tab <- NULL
 for (i in 1:length(folder_names)){
   
-  data_temp <- metablists[[folder_names[i]]]["t_0.05"][[1]]
+  data_temp <- metablists[[folder_names[i]]]["raw"][[1]]
   
   # Create a table of MOTUs quality criteria 
   # noise is identified as FALSE in data_temp, the "!" transforms it to TRUE 
@@ -620,9 +620,10 @@ for (i in 1:length(folder_names)){
     theme(legend.direction = "vertical") + 
     ggtitle(folder_names[i])
 }
+```
 
 
-
+```{r}
 plotnoisemotu <- ggarrange(plotlist =  plot_noise_motu, ncol = 2,nrow = ceiling(length(folder_names)/2),common.legend = T, legend = "bottom")
 
 ggsave("figures/noise_motu.jpg",plotnoisemotu, height = 8, width = 6 )
@@ -634,7 +635,7 @@ plot_noise_pcr <- NULL
 noise_pcr_tab <- NULL
 for (i in 1:length(folder_names)){
   
-  data_temp <- metablists[[folder_names[i]]]["t_0.05"][[1]]
+  data_temp <- metablists[[folder_names[i]]]["raw"][[1]]
   
   # Create a table of pcrs quality criteria 
   # noise is identified as FALSE in data_temp, the "!" transforms it to TRUE
@@ -687,8 +688,6 @@ ggsave("figures/noise_pcr.jpg",plotnoisepcr, height = 8, width = 6)
 # Clean noise
 
 ```{r}
-list_threshold <- "DEFINE THRESHOLDS"
-
 cleaned_metablist <- NULL
 summary_list <- NULL
 sumpipeline_plots <- NULL
