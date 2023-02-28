@@ -9,9 +9,7 @@ EcophyCofog::Library(c("readr","magrittr","dplyr","stringr","reshape2",
                        "speedyseq"))
 ```
 
-
 # Input format
-
 
 The basic data format used in `metabaR` is a `metabarlist`, a list of four tables:   
 
@@ -33,7 +31,6 @@ The basic data format used in `metabaR` is a `metabarlist`, a list of four table
 
 # Prep files
 
-
 Load required files:
 
 ```{r}
@@ -53,7 +50,6 @@ for (i in 1:length(folder_names)){
   list_filters[[current_name]] <- read_delim(paste0("data/OBI_pipeline_ngs/",current_name,"_ngsfilter.tab"),"\t", escape_double = F, trim_ws = T, col_names = F)
 } 
 ```
-
 
 get MOTUS counts in data_motus
 ```{r}
@@ -398,7 +394,6 @@ contaprop <- ggarrange(plotlist =  conta_prop, ncol = 2,nrow = ceiling(length(fo
 ggsave("figures/conta_prop.jpg",contaprop, height = 8, width = 6 )
 ```
 
-
 Comp_mother & mother_glom are poor datasets. 
 Cannot be used.
 Mother 16s and ITS seems to be ok with higher contaminant proportions in controls but still really low (~1%) which is worrying.
@@ -430,9 +425,6 @@ for (i in 1:length(folder_names)){
   metablists[[folder_names[i]]] <- data_temp
 }
 ```
-
-
-
 
 investigate poorly assigned sequence.
 Need to set a confidence level or a taxonomic level were I reject either the assignation or even the sequence.
@@ -523,14 +515,12 @@ plotseqdepth <- ggarrange(plotlist =  plot_seq_depth, ncol = 2,nrow = ceiling(le
 ggsave("figures/seq_depth.jpg",plotseqdepth, height = 8, width = 6 )
 ```
 
-
 Test different thresholds to identify tagjumps.
 Ideally we maximize a drop in MOTUs AND Reads in pcr negative controls while mainly losing MOTUs in samples?
 ```{r}
 plot_tag_jump <- NULL
 
 for (i in 1:length(folder_names)){
-  
   
   data_temp <- metablists[[folder_names[i]]]
   
@@ -573,6 +563,7 @@ for (i in 1:length(folder_names)){
           legend.position = "none")+
     ggtitle(folder_names[[i]])
   
+  tests[["raw"]] <- data_temp
   metablists[[folder_names[i]]] <- tests 
 }
 
@@ -583,7 +574,14 @@ ggsave("figures/tag_jump.jpg",plottagjump, height = 12, width = 13 )
 
 summarize noise in motus
 ```{r}
-# SET THRESHOLD: test 0.05
+# color_scale
+a <- unlist(combn(c("extraction_conta", "untargeted_taxon","poorly_assigned"),1,simplify = F))
+b <- c("extraction_conta|untargeted_taxon","extraction_conta|poorly_assigned","untargeted_taxon|poorly_assigned")
+c <- BBmisc::collapse(unlist(combn(c("extraction_conta", "untargeted_taxon","poorly_assigned"),3,simplify = F)),sep = "|")
+myColors <- RColorBrewer::brewer.pal(8,"Set1")
+names(myColors) <- levels(as.factor(c(a,b,c,"not_artefactual")))
+colScale <- scale_fill_manual(name = "grp",values = myColors)
+
 
 plot_noise_motu <- NULL
 motu_noise_tab <- NULL
@@ -614,13 +612,6 @@ for (i in 1:length(folder_names)){
   tmp.motus <- as.data.frame(gsub("^$", "not_artefactual", tmp.motus))
   colnames(tmp.motus) <-  "artefact_type"
   
-  a <- unlist(combn(c("extraction_conta", "untargeted_taxon","poorly_assigned"),1,simplify = F))
-  b <- c("extraction_conta|untargeted_taxon","extraction_conta|poorly_assigned","untargeted_taxon|poorly_assigned")
-  c <- BBmisc::collapse(unlist(combn(c("extraction_conta", "untargeted_taxon","poorly_assigned"),3,simplify = F)),sep = "|")
-  myColors <- RColorBrewer::brewer.pal(8,"Set1")
-  names(myColors) <- levels(as.factor(c(a,b,c,"not_artefactual")))
-  colScale <- scale_fill_manual(name = "grp",values = myColors)
-  
   plot_noise_motu[[folder_names[i]]] <- ggplot(tmp.motus, aes(x=1, fill=artefact_type)) +
     geom_bar() +  xlim(0, 2) +
     labs(fill="Artifact type") + 
@@ -629,6 +620,9 @@ for (i in 1:length(folder_names)){
     theme(legend.direction = "vertical") + 
     ggtitle(folder_names[i])
 }
+
+
+
 plotnoisemotu <- ggarrange(plotlist =  plot_noise_motu, ncol = 2,nrow = ceiling(length(folder_names)/2),common.legend = T, legend = "bottom")
 
 ggsave("figures/noise_motu.jpg",plotnoisemotu, height = 8, width = 6 )
