@@ -90,20 +90,20 @@ for (i in 1:length(folder_names)){
 
 get their position in the PCR context kinda dont care
 ```{r}
-conta_pos <- NULL
-for (i in 1:length(folder_names)){
-  data_temp <- metablists[[folder_names[i]]]
-  
-# Identify the most common contaminant
-# get contaminant ids
-  id <- !data_temp$motus$not_an_extraction_conta
-  max.conta <- rownames(data_temp$motus[id,])[which.max(data_temp$motus[id, "counts"])]
-  if(length(max.conta)!=0){
-  #... and its distribution and relative abundance in each pcr
-  conta_pos[[folder_names[i]]] <-  ggpcrplate(data_temp, legend_title = "#reads of most \nabundant contaminant",
-             FUN = function(m) {m$reads[, max.conta]/rowSums(m$reads)})
-  }
-}
+# conta_pos <- NULL
+# for (i in 1:length(folder_names)){
+#   data_temp <- metablists[[folder_names[i]]]
+#   
+# # Identify the most common contaminant
+# # get contaminant ids
+#   id <- !data_temp$motus$not_an_extraction_conta
+#   max.conta <- rownames(data_temp$motus[id,])[which.max(data_temp$motus[id, "counts"])]
+#   if(length(max.conta)!=0){
+#   #... and its distribution and relative abundance in each pcr
+#   conta_pos[[folder_names[i]]] <-  ggpcrplate(data_temp, legend_title = "#reads of most \nabundant contaminant",
+#              FUN = function(m) {m$reads[, max.conta]/rowSums(m$reads)})
+#   }
+# }
 ```
 
 store and plot the proportion of contaminant reads per pcr and overall. 
@@ -536,6 +536,13 @@ plottaxbootspost <- ggarrange(plotlist =  plot_tax_boots_post, ncol = 2,nrow = c
 
 ggsave("figures/tax_boots_post.jpg",plottaxbootspost, height = 8, width = 6 )
 ```
+
+remove taxa with no reads
+```{r}
+
+```
+
+
 
 # Generate physeqlists
 
