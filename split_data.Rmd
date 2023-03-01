@@ -24,8 +24,6 @@ Runs containing mother leaf samples:
 sub_mother_16s <- subset_samples(physeqlists$mother_16s, organ == "LEAVES" & project == "HOLOBROM_MERES")
 sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" & project == "HOLOBROM_MERES")
 
-ntaxa(sub_mother_16s)
-ntaxa(sub_mother_ITS)
 # Second add trtmt info?
 
 sub_mother_16s %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
@@ -44,6 +42,39 @@ sub_mother_ITS %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
                                                         ifelse(between(ID,61,75), "WSP", "WPS")
                                                  )))))
 ```
+
+```{r}
+ntaxa(sub_mother_16s)
+nsamples(sub_mother_16s)
+ntaxa(sub_mother_ITS)
+nsamples(sub_mother_ITS)
+
+
+reads_samples <- data.frame(reads=rowSums(otu_table(sub_mother_16s)),
+                            samples=str_extract(pattern="^\\d+",rownames(otu_table(sub_mother_16s))),
+                            richness=rowSums(otu_table(sub_mother_16s) != 0))
+
+
+reads_samples %>% ggplot(aes(x=samples,y=reads))+
+  geom_col() +
+  scale_x_discrete(guide = guide_axis(n.dodge=2))+
+  theme_classic2()
+
+reads_samples %>% ggplot(aes(x=samples,y=richness))+
+  geom_col() +
+  scale_x_discrete(guide = guide_axis(n.dodge=2))+
+  theme_classic2()
+
+otu_abb <- data.frame(abb=colSums(otu_table(sub_mother_16s)),
+                      otu=str_extract(pattern="\\d+$",colnames(otu_table(sub_mother_16s))))
+otu_abb %<>% filter(abb!=0)
+
+otu_abb %>% ggplot(aes(x=otu,y=log(abb)))+
+  geom_col() +
+  scale_x_discrete(guide = guide_axis(n.dodge=2))+
+  theme_classic2()
+```
+
 
 ### Summarize datasets info
 
