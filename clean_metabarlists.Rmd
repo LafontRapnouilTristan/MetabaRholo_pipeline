@@ -161,7 +161,7 @@ for (i in 1:length(folder_names)){
   data_temp <- metablists[[folder_names[i]]]
   
   target <- dplyr::last(BBmisc::explode(folder_names[i],"_")) # get current target
-  target_kingdom <- ifelse(target=="16s","Bacteria","Fungi") # what do we target
+  target_kingdom <- ifelse(target=="16s","Bacteria|Archaea","Fungi") # what do we target
   
   #Flag MOTUs corresponding to target (TRUE) vs. non-target (FALSE) taxa 
   data_temp$motus$target_taxon <- grepl(target_kingdom, data_temp$motus$Kingdom)
