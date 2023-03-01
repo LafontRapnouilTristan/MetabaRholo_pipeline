@@ -1,6 +1,7 @@
 Script to generate data for my papers from phyloseq objects generated in `clean_metabarlists.Rmd`.
 
 ```{r}
+EcophyCofog::Library(c("phyloseq","phylosmith"))
 load("data/cl_metablists_physeq.RData")
 ```
 
@@ -24,6 +25,23 @@ Runs containing mother leaf samples:
 sub_mother_16s <- subset_samples(physeqlists$mother_16s, organ == "LEAVES" & project == "HOLOBROM_MERES")
 sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" & project == "HOLOBROM_MERES")
 
+sub_mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # update taxa table (remove taxa with 0 reads after subset)
+sub_mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
+```
+
+Plot alpha
+```{r}
+plot_richness(sub_mother_16s)
+plot_bar(sub_mother_16s)
+```
+
+
+```{r}
+sub_mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>3,sub_mother_16s) # rm taxa with less than 10 counts
+sub_mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>3,sub_mother_ITS)
+
+sub_mother_16s <- taxa_filter(sub_mother_16s,frequency = 2/ntaxa(sub_mother_16s))
+sub_mother_ITS <- taxa_filter(sub_mother_ITS,frequency = 2/ntaxa(sub_mother_ITS))
 # Second add trtmt info?
 
 sub_mother_16s %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
@@ -58,23 +76,37 @@ reads_samples <- data.frame(reads=rowSums(otu_table(sub_mother_16s)),
 reads_samples %>% ggplot(aes(x=samples,y=reads))+
   geom_col() +
   scale_x_discrete(guide = guide_axis(n.dodge=2))+
-  theme_classic2()
+  theme_classic2()+
+  annotate(geom="text",label = paste0("Total reads: ",sum(reads_samples$reads),"\n","Mean reads/sample: ",round(mean(reads_samples$reads),digits = 2)),x=1,y=max(reads_samples$reads)+(max(reads_samples$reads)-min(reads_samples$reads))*0.1,hjust = "left",vjust="Top",fontface="bold",size=3)
 
 reads_samples %>% ggplot(aes(x=samples,y=richness))+
   geom_col() +
   scale_x_discrete(guide = guide_axis(n.dodge=2))+
-  theme_classic2()
+  theme_classic2()+
+  annotate(geom="text",label = paste0("Mean OTUs/sample: ",round(mean(reads_samples$richness),digits = 2)),x=1,y=max(reads_samples$richness)+(max(reads_samples$richness)-min(reads_samples$richness))*0.1,hjust = "left",vjust="Top",fontface="bold",size=3)
+```
 
+
+```{r}
 otu_abb <- data.frame(abb=colSums(otu_table(sub_mother_16s)),
                       otu=str_extract(pattern="\\d+$",colnames(otu_table(sub_mother_16s))))
 otu_abb %<>% filter(abb!=0)
 
-otu_abb %>% ggplot(aes(x=otu,y=log(abb)))+
+otu_abb %>% ggplot(aes(x=otu,y=abb))+
   geom_col() +
   scale_x_discrete(guide = guide_axis(n.dodge=2))+
-  theme_classic2()
+  theme_classic2()+
+  scale_y_log10(name = 'OTU Abbundance') 
 ```
 
+```{r}
+sub_mother_16s_10rmo <- filter_taxa(sub_mother_16s, function(x) sum(x > 3) > (0.001*length(x)), prune = T )
+ntaxa(sub_mother_16s_10rmo)
+```
+```{r}
+sub_mother_its_10rmo <- filter_taxa(sub_mother_ITS, function(x) sum(x > 3) > (0.001*length(x)), prune = T )
+ntaxa(sub_mother_its_10rmo)
+```
 
 ### Summarize datasets info
 
