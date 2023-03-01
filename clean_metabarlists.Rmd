@@ -442,7 +442,7 @@ ggsave("figures/noise_pcr.jpg",plotnoisepcr, height = 8, width = 6)
 
 Choosen threshold of 0.05 for tagjumps
 ```{r}
-chsn_thrshld <- rep("t_0.03",6)
+chsn_thrshld <- rep("t_0.05",6)
 
 cleaned_metablist <- NULL
 summary_list <- NULL
@@ -452,9 +452,9 @@ for (i in 1:length(folder_names)){
   tmp <- metablists[[i]][[chsn_thrshld[i]]]
   
   # Subset on MOTUs: we keep motus that are defined as TRUE following the 
-  # three criteria below (sum of three TRUE is equal to 3 with the rowSums function)
+  # criteria below (sum of x TRUE is equal to x with the rowSums function)
   tmp <- subset_metabarlist(tmp, "motus", 
-                            indices = rowSums(tmp$motus[,c("not_an_extraction_conta", "target_taxon")]) == 2)#not_degraded 
+                            indices = rowSums(tmp$motus[,c("not_an_extraction_conta", "target_taxon")]) == 2)# ?poorly assigned?
   
   # Subset on pcrs and keep only controls 
   cleaned_metablist[[folder_names[i]]] <- data_temp <- subset_metabarlist(tmp, "pcrs", 
@@ -513,7 +513,7 @@ moturead <- ggarrange(plotlist = motu_read_plots_post, ncol = 2, nrow = ceiling(
 ggsave("figures/motu_read_cor_post.jpg",moturead, height = 8, width = 6 )
 ```
 
-Visualize the effects of cleaning on taxboots.
+Visualize the effects of threshold on conf taxboots.
 ```{r}
 plot_tax_boots_post <- NULL
 for (i in 1:length(folder_names)){
@@ -536,13 +536,6 @@ plottaxbootspost <- ggarrange(plotlist =  plot_tax_boots_post, ncol = 2,nrow = c
 
 ggsave("figures/tax_boots_post.jpg",plottaxbootspost, height = 8, width = 6 )
 ```
-
-remove taxa with no reads
-```{r}
-
-```
-
-
 
 # Generate physeqlists
 
