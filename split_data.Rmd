@@ -1,8 +1,7 @@
 Script to generate data for my papers from phyloseq objects generated in `clean_metabarlists.Rmd`.
 
 ```{r}
-EcophyCofog::Library(c("phyloseq","phylosmith","forcats","dplyr","speedyseq","stringr","ggplot2","ggpubr",
-                       "microeco","file2meco"))
+EcophyCofog::Library(c("phyloseq","phylosmith","forcats","dplyr","speedyseq","stringr"))
 load("data/cl_metablists_physeq.RData")
 ```
 
@@ -22,15 +21,14 @@ Runs containing mother leaf samples:
   - comp_mother_16s (out, no samples passed pipeline)
 ```{r}
 # First filter non mother leaf samples
-
 sub_mother_16s <- subset_samples(physeqlists$mother_16s, organ == "LEAVES" & project == "HOLOBROM_MERES")
 sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" & project == "HOLOBROM_MERES")
 
-sub_mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # update taxa table (remove taxa with 0 reads after subset)
-sub_mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
+mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # update taxa table (remove taxa with 0 reads after subset)
+mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
+
+save(list=c("mother_16s","mother_ITS"), file = "data/out/mother_leaf.RData")
 ```
-
-
 
 ## Paper 2 - mother/seedlings 
 
@@ -50,52 +48,23 @@ Runs containing root and leaf samples:
 sub_mother_16s <- subset_samples(physeqlists$mother_16s, (organ == "LEAVES" | organ == "ROOTS") & project == "HOLOBROM_MERES")
 sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" | organ == "ROOTS" & project == "HOLOBROM_MERES")
 
-sub_mother_16s %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
-  mutate_sample_data(trmt = ifelse(ID <16,"DP",
-                                   ifelse(between(ID,16,30), "DPS",
-                                          ifelse(between(ID,31,45),"DSP",
-                                                 ifelse(between(ID,46,60),"WP",
-                                                        ifelse(between(ID,61,75), "WSP", "WPS")
-                                                 ))))) %>%
-  mutate_sample_data(water = ifelse(ID<46,"D","W"))
-
-sub_mother_ITS %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
-  mutate_sample_data(trmt = ifelse(ID <16,"DP",
-                                   ifelse(between(ID,16,30), "DPS",
-                                          ifelse(between(ID,31,45),"DSP",
-                                                 ifelse(between(ID,46,60),"WP",
-                                                        ifelse(between(ID,61,75), "WSP", "WPS")
-                                                 ))))) %>%
-  mutate_sample_data(water = ifelse(ID<46,"D","W"))
-
-sub_mother_16s <- subset_samples(sub_mother_16s, water == "W")
-sub_mother_ITS <- subset_samples(sub_mother_ITS, water == "W")
-
+mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # update taxa table (remove taxa with 0 reads after subset)
+mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
 ```
 
 
 ## Seedling
 
 ```{r}
-sub_mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>3,sub_mother_16s) # rm taxa with less than 10 counts
-sub_mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>3,sub_mother_ITS)
-
-sub_mother_16s <- taxa_filter(sub_mother_16s,frequency = 2/ntaxa(sub_mother_16s))
-sub_mother_ITS <- taxa_filter(sub_mother_ITS,frequency = 2/ntaxa(sub_mother_ITS))
 # Filter out non target samples
+sub_seedling_16s <- subset_samples(physeqlists$seedling_16s, organ == "LEAVES" | organ =="ROOTS")
+sub_seedling_ITS <- subset_samples(physeqlists$seedling_ITS2, organ == "LEAVES" | organ =="ROOTS")
 
-sub_seedling_16s <- subset_samples(physeqlists$seedling_16s, organ == "LEAVES" | organ =="ROOTS") %>% 
-  mutate_sample_data(mo_ID = str_extract(sample_id,"^\\d+")) %>%
-  mutate_sample_data(trmt_mo = ifelse(between(mo_ID,46,60),"WP",
-                                   ifelse(between(mo_ID,61,75), "WSP", "WPS")),
-                     trtmt = sapply(strsplit(as.character(sample_id), "_"), function(x) x[[1]][2]),
-                     rep = sapply(strsplit(as.character(sample_id), "_"), function(x) x[[1]][3]))
-
-
-sub_seedling_ITS <- subset_samples(physeqlists$seedling_ITS2, organ == "LEAVES" | organ =="ROOTS") %>% 
-  mutate_sample_data(mo_ID = str_extract(sample_id,"^\\d+")) %>%
-  mutate_sample_data(trmt_mo = ifelse(between(mo_ID,46,60),"WP",
-                                   ifelse(between(mo_ID,61,75), "WSP", "WPS")),
-                     trtmt = sapply(strsplit(as.character(sample_id), "_"), function(x) x[[1]][2]),
-                     rep = sapply(strsplit(as.character(sample_id), "_"), function(x) x[[1]][3]))
+seedling_16s <- prune_taxa(taxa_sums(sub_seedling_16s)>0,sub_seedling_16s) # update taxa table (remove taxa with 0 reads after subset)
+seedling_ITS <- prune_taxa(taxa_sums(sub_seedling_ITS)>0,sub_seedling_ITS)
 ```
+
+```{r}
+save(list=c("mother_16s","mother_ITS","seedling_16s","seedling_ITS"), file = "data/out/seedling_leafNroot.RData")
+```
+
