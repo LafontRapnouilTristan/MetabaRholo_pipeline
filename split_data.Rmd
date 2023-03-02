@@ -1,7 +1,8 @@
 Script to generate data for my papers from phyloseq objects generated in `clean_metabarlists.Rmd`.
 
 ```{r}
-EcophyCofog::Library(c("phyloseq","phylosmith"))
+EcophyCofog::Library(c("phyloseq","phylosmith","forcats","dplyr","speedyseq","stringr","ggplot2","ggpubr",
+                       "microeco","file2meco"))
 load("data/cl_metablists_physeq.RData")
 ```
 
@@ -29,11 +30,13 @@ sub_mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # updat
 sub_mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
 ```
 
-Plot alpha
 ```{r}
-plot_richness(sub_mother_16s)
-plot_bar(sub_mother_16s)
+sub_mother_16s
+meco_mo16s <- file2meco::phyloseq2meco(sub_mother_16s)
+
+meco_mo16s$sample_sums()
 ```
+
 
 
 ```{r}
@@ -106,70 +109,7 @@ ntaxa(sub_mother_16s_10rmo)
 ```{r}
 sub_mother_its_10rmo <- filter_taxa(sub_mother_ITS, function(x) sum(x > 3) > (0.001*length(x)), prune = T )
 ntaxa(sub_mother_its_10rmo)
-```
-
-### Summarize datasets info
-
-```{r}
-ntaxa(sub_mother_16s)
-nsamples(sub_mother_16s)
-sample_names(sub_mother_16s)
-
-sample_names(sub_mother_ITS)
-```
-
-
-
-
-
-
-
-```{r}
-# Build PCoA ordinations 
-mds1 <- plot_ordination(sub_mother_16s,ordinate(sub_mother_16s,
-                                                method = "NMDS",
-                                                distance = "bray"),
-                        type = "samples",
-                        color = "trmt")
-
-# Custom colors
-a1 <- mds1 + labs(color = "trtmt") +
-  theme(legend.position = "n")+ 
-  ggtitle("sub_mother_16s")
-
-
-# Assemble plots
-leg1 <- get_legend(a1 + guides(shape=F) + 
-                    theme(legend.position = "right", 
-                          legend.direction = "vertical"))
-ggdraw() +
-  draw_plot(a1, x=0, y=0, width = 0.8, height = 1) + 
-  draw_grob(leg1, x=0.4, y=0)
-
-```
-```{r}
-# Build PCoA ordinations 
-mds2 <- plot_ordination(sub_mother_ITS,ordinate(sub_mother_ITS,
-                                                method = "NMDS",
-                                                distance = "bray"),
-                        type = "samples",
-                        color = "trmt")
-
-# Custom colors
-a2 <- mds2 + labs(color = "trtmt") +
-  theme(legend.position = "n") + 
-  ggtitle("sub_mother_ITS")
-
-
-# Assemble plots
-leg2 <- get_legend(a2 + guides(shape=F) + 
-                    theme(legend.position = "right", 
-                          legend.direction = "vertical"))
-ggdraw() +
-  draw_plot(a2, x=0, y=0, width = 0.8, height = 1) + 
-  draw_grob(leg2, x=0.4, y=0)
-
-```
+``` 
 
 
 ## Paper 2 - mother/seedlings 
@@ -183,6 +123,7 @@ Runs containing root and leaf samples:
   - seedling_16s
   
 ### Mother
+
 ```{r}
 # Filter out non target samples
 
@@ -209,81 +150,95 @@ sub_mother_ITS %<>% mutate_sample_data(ID = str_extract(sample_id,"^\\d+")) %>%
 
 sub_mother_16s <- subset_samples(sub_mother_16s, water == "W")
 sub_mother_ITS <- subset_samples(sub_mother_ITS, water == "W")
-# Merge different primers
-```
-
-```{r}
-# Build PCoA ordinations 
-mds1 <- plot_ordination(sub_mother_16s,ordinate(sub_mother_16s,
-                                                method = "NMDS",
-                                                distance = "bray"),
-                        type = "samples",
-                        color = "trmt",
-                        shape = "organ")
-
-# Custom colors
-a1 <- mds1 + labs(color = "trtmt",
-                  shape = "organ") +
-  theme(legend.position = "n")+ 
-  ggtitle("sub_mother_16s")
-
-
-# Assemble plots
-leg1 <- get_legend(a1  + 
-                    theme(legend.position = "right", 
-                          legend.direction = "vertical"))
-ggdraw() +
-  draw_plot(a1, x=0, y=0, width = 0.8, height = 1) + 
-  draw_grob(leg1, x=0.4, y=0)
 
 ```
 
-```{r}
-# Build PCoA ordinations 
-mds2 <- plot_ordination(sub_mother_ITS,ordinate(sub_mother_ITS,
-                                                method = "NMDS",
-                                                distance = "bray"),
-                        type = "samples",
-                        color = "trmt",
-                        shape = "organ")
-
-# Custom colors
-a2 <- mds2 + labs(color = "trtmt",
-                  shape = "organ") +
-  theme(legend.position = "n")+ 
-  ggtitle("sub_mother_ITS")
-
-
-# Assemble plots
-leg2 <- get_legend(a2  + 
-                    theme(legend.position = "right", 
-                          legend.direction = "vertical"))
-ggdraw() +
-  draw_plot(a2, x=0, y=0, width = 0.8, height = 1) + 
-  draw_grob(leg2, x=0.4, y=0)
-
-```
 
 ## Seedling
 
 ```{r}
+sub_mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>3,sub_mother_16s) # rm taxa with less than 10 counts
+sub_mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>3,sub_mother_ITS)
+
+sub_mother_16s <- taxa_filter(sub_mother_16s,frequency = 2/ntaxa(sub_mother_16s))
+sub_mother_ITS <- taxa_filter(sub_mother_ITS,frequency = 2/ntaxa(sub_mother_ITS))
 # Filter out non target samples
 
 sub_seedling_16s <- subset_samples(physeqlists$seedling_16s, organ == "LEAVES" | organ =="ROOTS") %>% 
-  mutate_sample_data(mo_ID = str_extract(samples,"^\\d+")) %>%
+  mutate_sample_data(mo_ID = str_extract(sample_id,"^\\d+")) %>%
   mutate_sample_data(trmt_mo = ifelse(between(mo_ID,46,60),"WP",
                                    ifelse(between(mo_ID,61,75), "WSP", "WPS")),
-                     trtmt = sapply(strsplit(as.character(samples), "_"), function(x) x[[1]][2]),
-                     rep = sapply(strsplit(as.character(samples), "_"), function(x) x[[1]][3]))
+                     trtmt = sapply(strsplit(as.character(sample_id), "_"), function(x) x[[1]][2]),
+                     rep = sapply(strsplit(as.character(sample_id), "_"), function(x) x[[1]][3]))
 
 
 sub_seedling_ITS <- subset_samples(physeqlists$seedling_ITS2, organ == "LEAVES" | organ =="ROOTS") %>% 
-  mutate_sample_data(mo_ID = str_extract(samples,"^\\d+")) %>%
+  mutate_sample_data(mo_ID = str_extract(sample_id,"^\\d+")) %>%
   mutate_sample_data(trmt_mo = ifelse(between(mo_ID,46,60),"WP",
                                    ifelse(between(mo_ID,61,75), "WSP", "WPS")),
-                     trtmt = sapply(strsplit(as.character(samples), "_"), function(x) x[[1]][2]),
-                     rep = sapply(strsplit(as.character(samples), "_"), function(x) x[[1]][3]))
+                     trtmt = sapply(strsplit(as.character(sample_id), "_"), function(x) x[[1]][2]),
+                     rep = sapply(strsplit(as.character(sample_id), "_"), function(x) x[[1]][3]))
 ```
+
+```{r}
+plot_richness(sub_seedling_16s)
+```
+
+
+```{r}
+plot_bar(sub_seedling_16s)
+```
+
+
+```{r}
+ntaxa(sub_seedling_16s)
+nsamples(sub_seedling_16s)
+
+reads_samples <- data.frame(reads=rowSums(otu_table(sub_seedling_16s)),
+                            samples=rownames(otu_table(sub_seedling_16s)),
+                            richness=rowSums(otu_table(sub_seedling_16s) != 0))
+
+
+reads_samples %>% ggplot(aes(x=samples,y=reads))+
+  geom_col() +
+  scale_x_discrete(guide = guide_axis(n.dodge=2))+
+  theme_classic2()+
+  annotate(geom="text",label = paste0("Total reads: ",sum(reads_samples$reads),"\n","Mean reads/sample: ",round(mean(reads_samples$reads),digits = 2)),x=1,y=max(reads_samples$reads)+(max(reads_samples$reads)-min(reads_samples$reads))*0.1,hjust = "left",vjust="Top",fontface="bold",size=3)
+
+reads_samples %>% ggplot(aes(x=samples,y=richness))+
+  geom_col() +
+  scale_x_discrete(guide = guide_axis(n.dodge=2))+
+  theme_classic2()+
+  annotate(geom="text",label = paste0("Mean OTUs/sample: ",round(mean(reads_samples$richness),digits = 2)),x=1,y=max(reads_samples$richness)+(max(reads_samples$richness)-min(reads_samples$richness))*0.1,hjust = "left",vjust="Top",fontface="bold",size=3)
+```
+
+
+```{r}
+otu_abb <- data.frame(abb=colSums(otu_table(sub_mother_16s)),
+                      otu=str_extract(pattern="\\d+$",colnames(otu_table(sub_mother_16s))))
+otu_abb %<>% filter(abb!=0)
+
+otu_abb %>% ggplot(aes(x=otu,y=abb))+
+  geom_col() +
+  scale_x_discrete(guide = guide_axis(n.dodge=2))+
+  theme_classic2()+
+  scale_y_log10(name = 'OTU Abbundance') 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```{r}
 # Build PCoA ordinations 
