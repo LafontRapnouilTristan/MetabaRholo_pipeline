@@ -2,6 +2,7 @@ Script to plot, assess and clean noise in my data produced by `create_metabarlis
 
 ```{r}
 load("data/raw_metablists.RData")
+set.seed(973)
 ```
 
 
@@ -222,7 +223,7 @@ for (i in 1:length(folder_names)){
     col <- match(colnames_tmp[j],colnames(data_temp$motus))
     a <- data_temp$motus[,c(col,col+length(colnames_tmp))]
     conf <- data.frame(ifelse(a[,2]<80,NA,a[,1]))
-    colnames(conf) <- paste0("conf_",colnames_tmp[j])
+    colnames(conf) <- paste0(colnames_tmp[j],"_conf")
     data_temp$motus <- cbind(data_temp$motus,conf)
   }
   # Overwrite
