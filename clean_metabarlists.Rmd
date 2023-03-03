@@ -1,6 +1,9 @@
 Script to plot, assess and clean noise in my data produced by `create_metabarlists.Rmd` and generate phyloseq object for further analyses.
 
 ```{r}
+EcophyCofog::Library(c("reshape2","ggplot2","stringr","cowplot",
+                       "magrittr","dplyr","ggpubr","forcats","phyloseq",
+                       "speedyseq","metabaR"))
 load("data/raw_metablists.RData")
 set.seed(973)
 ```
@@ -443,7 +446,7 @@ ggsave("figures/noise_pcr.jpg",plotnoisepcr, height = 8, width = 6)
 
 Choosen threshold of 0.05 for tagjumps
 ```{r}
-chsn_thrshld <- rep("t_0.05",6)
+chsn_thrshld <- rep("t_0.03",6)
 
 cleaned_metablist <- NULL
 summary_list <- NULL
@@ -588,12 +591,12 @@ for (i in 1:length(physeqlists)){
                                           method = "NMDS",
                                           distance = "bray"),
                           type = "taxa",
-                          color = "conf_Phylum")
+                          color = "Phylum_conf")
   mds2 <- plot_ordination(physeqlists[[i]],ordinate(physeqlists[[i]],
                                    method = "NMDS",
                                    distance = "bray"),
                           type = "taxa",
-                          color = "conf_Phylum")
+                          color = "Phylum_conf")
   
   # Custom colors
   a <- mds1 + labs(color = "Phylum") +
