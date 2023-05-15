@@ -9,7 +9,7 @@ library(forcats)
 library(stringr)
 
 list_files <- list.files("data/OBI_pipeline_results/")
-list_files <- list_files[-5]
+list_files <- list_files[1:2]
 
 glob_smry <- list()
 plot_glob_smry <- NULL
@@ -76,8 +76,8 @@ for (i in 1:length(list_files)){
 }  
 
 plot_smry <- ggarrange(plotlist = plot_glob_smry, ncol = 2, nrow = length(plot_glob_smry)/2, common.legend = T, legend = "bottom")
-ggsave("figures/seq_reads_pct_loss.png",plot_smry, height = 10,width = 6)
+ggsave("figures/seq_reads_pct_loss_art1.png",plot_smry, height = 10,width = 6)
 
 plot_smpl <- ggarrange(plotlist = plot_sample_smry, ncol = 2, nrow = length(plot_glob_smry)/2, common.legend = T, legend = "bottom")
-ggsave("figures/smpl_track.png",plot_smpl, height = 10,width = 6)
+ggsave("figures/smpl_track_art1.png",plot_smpl, height = 10,width = 6)
 ```

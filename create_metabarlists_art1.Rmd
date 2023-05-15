@@ -35,7 +35,7 @@ Load required files:
 
 ```{r}
 folder_names <- list.files("data/OBI_pipeline_results/")
-folder_names <- folder_names[c(-3,-4)]
+folder_names <- folder_names[-c(3:5)]
 
 list_motus <- list()
 list_reads <- list()
@@ -160,13 +160,23 @@ for (i in 1:length(list_reads)){
 
 Add info on my samples, has to be improved but i'll see when i'll get my data.
 ```{r}
-list_samples[[1]] %<>% mutate(organ= ifelse(grepl("_F",list_samples[[1]]$sample_id)==T,"LEAVES",
-                                                               ifelse(grepl("_R",list_samples[[1]]$sample_id)==T,"ROOTS",
-                                                                      ifelse(grepl("_GR",list_samples[[1]]$sample_id)==T,"SEEDS","SOIL")))) %>%
-  mutate(project = ifelse(organ =="SEEDS","HOLOBROM_SEEDS","HOLOBROM_MERES"))
 
-list_samples[[2]] %<>% 
-  mutate(organ = ifelse( grepl("(_Rp)|([0-9]{3}R)",list_samples[[2]]$sample_id)==T,"ROOTS",
+list_samples[[1]] %<>%
+  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{1}R)",list_samples[[1]]$sample_id)==T,"ROOTS",
+                         ifelse( grepl("FL",list_samples[[1]]$sample_id)==T,"FLOWER",
+                                 ifelse( grepl("FE",list_samples[[1]]$sample_id)==T,"LEAVES",
+                                         ifelse( grepl("FR",list_samples[[1]]$sample_id)==T,"FRUIT",
+                                                 ifelse( grepl("RJ",list_samples[[1]]$sample_id)==T,"RESHOOT",
+                                                         ifelse( grepl("GR",list_samples[[1]]$sample_id)==T,"SEEDS",
+                                                                 ifelse( grepl("ED",list_samples[[1]]$sample_id)==T,"ENDOPHYTES",
+                                                                         ifelse( grepl("EP",list_samples[[1]]$sample_id)==T,"EPIPHYTES",
+                                                                                 ifelse( grepl("[0-9]{1}(S|C)",list_samples[[1]]$sample_id)==T,"RHIZOSPHERE",
+                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[1]]$sample_id)==T,"CONTROL","SOIL")
+                                                                                 )))))))))) %>%
+  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{1}R",list_samples[[1]]$sample_id)==T,"INT_M",list_pcrs[[1]]$project))
+
+list_samples[[2]] %<>%
+  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{2}R)",list_samples[[2]]$sample_id)==T,"ROOTS",
                          ifelse( grepl("FL",list_samples[[2]]$sample_id)==T,"FLOWER",
                                  ifelse( grepl("FE",list_samples[[2]]$sample_id)==T,"LEAVES",
                                          ifelse( grepl("FR",list_samples[[2]]$sample_id)==T,"FRUIT",
@@ -174,57 +184,18 @@ list_samples[[2]] %<>%
                                                          ifelse( grepl("GR",list_samples[[2]]$sample_id)==T,"SEEDS",
                                                                  ifelse( grepl("ED",list_samples[[2]]$sample_id)==T,"ENDOPHYTES",
                                                                          ifelse( grepl("EP",list_samples[[2]]$sample_id)==T,"EPIPHYTES",
-                                                                                 ifelse( grepl("[0-9]{3}(S|C)",list_samples[[2]]$sample_id)==T,"RHIZOSPHERE",
+                                                                                 ifelse( grepl("[0-9]{2}(S|C)",list_samples[[2]]$sample_id)==T,"RHIZOSPHERE",
                                                                                          ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[2]]$sample_id)==T,"CONTROL","SOIL")
                                                                                  )))))))))) %>%
-  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{3}R",list_samples[[2]]$sample_id)==T,"INT_M",list_pcrs[[2]]$project))
-
-list_samples[[3]] %<>% 
-  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",list_samples[[3]]$sample_id)==T,"ROOTS",
-                         ifelse( grepl("FL",list_samples[[3]]$sample_id)==T,"FLOWER",
-                                 ifelse( grepl("FE",list_samples[[3]]$sample_id)==T,"LEAVES",
-                                         ifelse( grepl("FR",list_samples[[3]]$sample_id)==T,"FRUIT",
-                                                 ifelse( grepl("RJ",list_samples[[3]]$sample_id)==T,"RESHOOT",
-                                                         ifelse( grepl("GR",list_samples[[3]]$sample_id)==T,"SEEDS",
-                                                                 ifelse( grepl("ED",list_samples[[3]]$sample_id)==T,"ENDOPHYTES",
-                                                                         ifelse( grepl("EP",list_samples[[3]]$sample_id)==T,"EPIPHYTES",
-                                                                                 ifelse( grepl("[0-9]{3}(S|C)",list_samples[[3]]$sample_id)==T,"RHIZOSPHERE",
-                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[3]]$sample_id)==T,"CONTROL","SOIL")
-                                                                                 )))))))))) %>%
-  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{3}R",list_samples[[3]]$sample_id)==T,"INT_M",list_pcrs[[3]]$project))
-
-list_samples[[4]] %<>% 
-  mutate(organ = ifelse( grepl("_R|(-R)|([0-9]{3}R)",list_samples[[4]]$sample_id)==T,"ROOTS",
-                         ifelse( grepl("FL",list_samples[[4]]$sample_id)==T,"FLOWER",
-                                 ifelse( grepl("FE",list_samples[[4]]$sample_id)==T,"LEAVES",
-                                         ifelse( grepl("FR",list_samples[[4]]$sample_id)==T,"FRUIT",
-                                                 ifelse( grepl("RJ",list_samples[[4]]$sample_id)==T,"RESHOOT",
-                                                         ifelse( grepl("GR",list_samples[[4]]$sample_id)==T,"SEEDS",
-                                                                 ifelse( grepl("ED",list_samples[[4]]$sample_id)==T,"ENDOPHYTES",
-                                                                         ifelse( grepl("EP",list_samples[[4]]$sample_id)==T,"EPIPHYTES",
-                                                                                 ifelse( grepl("[0-9]{3}(S|C)",list_samples[[4]]$sample_id)==T,"RHIZOSPHERE",
-                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[4]]$sample_id)==T,"CONTROL","SOIL")
-                                                                                 )))))))))) %>%
-  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{3}R",list_samples[[4]]$sample_id)==T,"INT_M",list_pcrs[[4]]$project))
-
-list_samples[[5]] %<>% 
-  mutate(organ= ifelse(grepl("_F",list_samples[[5]]$sample_id)==T,"LEAVES",
-                       ifelse(grepl("_R",list_samples[[5]]$sample_id)==T,"ROOTS","CONTROL")),
-         project= "HOLOBROM_PLANTULES")
-
-
-list_samples[[6]] %<>%
-  mutate(organ= ifelse(grepl("_F",list_samples[[6]]$sample_id)==T,"LEAVES",
-                       ifelse(grepl("_R",list_samples[[6]]$sample_id)==T,"ROOTS","CONTROL")),
-         project= "HOLOBROM_PLANTULES")
-
+  mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{2}R",list_samples[[2]]$sample_id)==T,"INT_M",list_pcrs[[2]]$project))
 ```
 
 # Generate metabarlists
 
 ```{r}
 metablists <- NULL
-
+list_pcrs[[1]] <- list_pcrs[[1]][,-c(4,10,11)]
+list_pcrs[[2]] <- list_pcrs[[2]][,-c(4,10,11)]
 for (i in 1:length(folder_names)){
   
   metablists[[folder_names[i]]] <- metabaR::metabarlist_generator(reads=as.matrix(list_reads[[i]]),
@@ -256,5 +227,5 @@ rm temp_files
 ```{r}
 toremove <- grep("folder_names|^metab", ls(), invert=T, value=T)
 rm(list = c(toremove, "toremove"))
-save.image("data/raw_metablists.RData")
+save.image("data/raw_metablists_art1.RData")
 ```

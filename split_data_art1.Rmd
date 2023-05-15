@@ -2,7 +2,7 @@ Script to generate data for my papers from phyloseq objects generated in `clean_
 
 ```{r}
 EcophyCofog::Library(c("phyloseq","phylosmith","forcats","dplyr","speedyseq","stringr"))
-load("data/cl_metablists_physeq.RData")
+load("data/cl_metablists_physeq_art1.RData")
 ```
 
 
@@ -21,13 +21,13 @@ Runs containing mother leaf samples:
   - comp_mother_16s (out, no samples passed pipeline)
 ```{r}
 # First filter non mother leaf samples
-sub_mother_16s <- subset_samples(physeqlists$mother_16s, organ == "LEAVES" & project == "HOLOBROM_MERES")
+sub_mother_16s <- subset_samples(physeqlists$mother_16s2, organ == "LEAVES" & project == "HOLOBROM_FE")
 sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" & project == "HOLOBROM_MERES")
 
 mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # update taxa table (remove taxa with 0 reads after subset)
 mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
 
-save(list=c("mother_16s","mother_ITS"), file = "data/out/mother_leaf.RData")
+save(list=c("mother_16s","mother_ITS"), file = "data/out/mother_leaf_art1.RData")
 ```
 
 ## Paper 2 - mother/seedlings 
@@ -45,8 +45,8 @@ Runs containing root and leaf samples:
 ```{r}
 # Filter out non target samples
 
-sub_mother_16s <- subset_samples(physeqlists$mother_16s, (organ == "LEAVES" | organ == "ROOTS") & project == "HOLOBROM_MERES")
-sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" | organ == "ROOTS" & project == "HOLOBROM_MERES")
+sub_mother_16s <- subset_samples(physeqlists$mother_16s2, (organ == "LEAVES" | organ == "ROOTS") & project == "HOLOBROM_FE" | project == "HOLOBROM_R")
+sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" | organ == "ROOTS" & project == "HOLOBROM_FE" | project == "HOLOBROM_R")
 
 mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # update taxa table (remove taxa with 0 reads after subset)
 mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
@@ -57,7 +57,7 @@ mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
 
 ```{r}
 # Filter out non target samples
-sub_seedling_16s <- subset_samples(physeqlists$seedling_16s, organ == "LEAVES" | organ =="ROOTS")
+sub_seedling_16s <- subset_samples(physeqlists$seedling_16s2, organ == "LEAVES" | organ =="ROOTS")
 sub_seedling_ITS <- subset_samples(physeqlists$seedling_ITS2, organ == "LEAVES" | organ =="ROOTS")
 
 seedling_16s <- prune_taxa(taxa_sums(sub_seedling_16s)>0,sub_seedling_16s) # update taxa table (remove taxa with 0 reads after subset)
