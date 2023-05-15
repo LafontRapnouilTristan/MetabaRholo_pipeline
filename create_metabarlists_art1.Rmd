@@ -91,25 +91,25 @@ for (i in 1:length(list_reads)){
 
 prepare data_pcrs
 ```{r}
-filtid <- list_filters$mother_16s2$X2
-sampid <- list_samples[[1]]$sample_id
+filtid <- list_filters$mother_16s2$X2 # ID 16s
+sampid <- list_samples[[1]]$sample_id # ID samples
 
-list_filters$mother_16s2$X2[which(filtid %in% sampid==F)] <- gsub("-","_",list_filters$mother_16s2$X2[which(filtid %in% sampid==F)])
-c(setdiff(sort(list_filters[[i]]$X2),sort(list_samples[[i]]$sample_id)))
+list_filters$mother_16s2$X2[which(filtid %in% sampid==F)] <- gsub("-","_",list_filters$mother_16s2$X2[which(filtid %in% sampid==F)]) # replace - by _
+c(setdiff(sort(list_filters[[i]]$X2),sort(list_samples[[i]]$sample_id))) # check if ngs and sample names match
 c(setdiff(sort(list_samples[[i]]$sample_id),sort(list_filters[[i]]$X2)))
 
 list_pcrs <- list()
 for (i in 1:length(list_reads)){
   
-  colnames(list_filters[[i]]) <- c("project","ID","Tags","PrimeF","PrimeR","diff_doublons","x","Type")
+  colnames(list_filters[[i]]) <- c("project","ID","Tags","PrimeF","PrimeR","diff_doublons","x","Type") # rename columns
   
-  list_filters[[i]] <- dplyr::filter(list_filters[[i]], !ID %in% c(setdiff(sort(list_filters[[i]]$ID),sort(list_samples[[i]]$sample_id))))
+  # list_filters[[i]] <- dplyr::filter(list_filters[[i]], !ID %in% c(setdiff(sort(list_filters[[i]]$ID),sort(list_samples[[i]]$sample_id)))) #useless now
   
-  list_pcrs[[i]] <- list_samples[[i]] %>% mutate(type=ifelse(grepl("control",arrange(list_filters[[i]],ID)$Type)==T,"control","sample"),
-                                                 control_type=ifelse(grepl("control_type=",arrange(list_filters[[i]],ID)$Type)==T,
-                                                                     str_extract(arrange(list_filters[[i]],ID)$Type,"(?<=control_type=)\\w+"),NA),
-                                                 plate= str_extract(arrange(list_filters[[i]],ID)$Type,"(?<=position=)[[:alnum:]]*"),
-                                                 well= str_extract(arrange(list_filters[[i]],ID)$Type,"(?<=_)[[:upper:]]{1}[[:digit:]]{1,2}"))
+  list_pcrs[[i]] <- arrange(list_samples[[i]],sample_id) %>% mutate(type=ifelse(grepl("=control",arrange(list_filters[[i]],ID)$Type)==T,"control","sample"),
+                                                                    control_type=ifelse(grepl("control_type=",arrange(list_filters[[i]],ID)$Type)==T,
+                                                                                        str_extract(arrange(list_filters[[i]],ID)$Type,"(?<=control_type=)\\w+"),NA),
+                                                                    plate= str_extract(arrange(list_filters[[i]],ID)$Type,"(?<=position=)[[:alnum:]]*"),
+                                                                    well= str_extract(arrange(list_filters[[i]],ID)$Type,"(?<=_)[[:upper:]]{1}[[:digit:]]{1,2}"))
   
 }
 ```
@@ -171,7 +171,7 @@ list_samples[[1]] %<>%
                                                                  ifelse( grepl("ED",list_samples[[1]]$sample_id)==T,"ENDOPHYTES",
                                                                          ifelse( grepl("EP",list_samples[[1]]$sample_id)==T,"EPIPHYTES",
                                                                                  ifelse( grepl("[0-9]{1}(S|C)",list_samples[[1]]$sample_id)==T,"RHIZOSPHERE",
-                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[1]]$sample_id)==T,"CONTROL","SOIL")
+                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS|+",list_samples[[1]]$sample_id)==T,"CONTROL","SOIL")
                                                                                  )))))))))) %>%
   mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{1}R",list_samples[[1]]$sample_id)==T,"INT_M",list_pcrs[[1]]$project))
 
@@ -185,7 +185,7 @@ list_samples[[2]] %<>%
                                                                  ifelse( grepl("ED",list_samples[[2]]$sample_id)==T,"ENDOPHYTES",
                                                                          ifelse( grepl("EP",list_samples[[2]]$sample_id)==T,"EPIPHYTES",
                                                                                  ifelse( grepl("[0-9]{2}(S|C)",list_samples[[2]]$sample_id)==T,"RHIZOSPHERE",
-                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS",list_samples[[2]]$sample_id)==T,"CONTROL","SOIL")
+                                                                                         ifelse( grepl("CT|EXT|PCR|TPOS|+",list_samples[[2]]$sample_id)==T,"CONTROL","SOIL")
                                                                                  )))))))))) %>%
   mutate(project = ifelse(organ %in% c("ENDOPHYTES","EPIPHYTES","RHIZOSPHERE") | grepl("[0-9]{2}R",list_samples[[2]]$sample_id)==T,"INT_M",list_pcrs[[2]]$project))
 ```

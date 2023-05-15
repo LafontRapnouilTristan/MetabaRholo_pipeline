@@ -15,7 +15,7 @@ Plot the number of Reads and OTUs per pcr according to pcr type.
 ```{r}
 load("data/raw_metablists_art1.RData")
 folder_names <- list.files("data/OBI_pipeline_results/")
-folder_names <- folder_names[c(-3,-4)]
+folder_names <- folder_names[-c(3:5)]
 
 diag_plots <- NULL
 for (i in 1:length(folder_names)){
@@ -65,7 +65,7 @@ moturead <- ggarrange(plotlist = motu_read_plots, ncol = 2, nrow = ceiling(lengt
 
 
 ```{r}
-ggsave("figures/motu_read_cor_art1.jpg",moturead, height = 8, width = 6 )
+ggsave("figures/motu_read_cor_art1.jpg",moturead, height = 4, width = 6 )
 ```
 
 rarefaction plots
@@ -144,7 +144,7 @@ contaprop <- ggarrange(plotlist =  conta_prop, ncol = 2,nrow = ceiling(length(fo
 
 
 ```{r}
-ggsave("figures/conta_prop_art1.jpg",contaprop, height = 8, width = 6 )
+ggsave("figures/conta_prop_art1.jpg",contaprop, height = 4, width = 6 )
 ```
 
 Comp_mother & mother_glom are poor datasets. 
@@ -185,6 +185,7 @@ Need to set a confidence level or a taxonomic level were I reject either the ass
 !!! BEWARE !!! The default level of confidence to assign a taxonomy level is 50 out of the 100 bootstraps. 
 I keep this default to see the taxonomy but will probably discard all levels with bootstrap confidence < 80.
 We cannot change the number of bootstrap (100 hardcoded) and K-mer length (8).
+I tag as poorly assigned sequence with no assignments at the phylum lvl.
 ```{r}
 plot_tax_boots <- NULL
 for (i in 1:length(folder_names)){
@@ -235,7 +236,7 @@ plottaxboots <- ggarrange(plotlist =  plot_tax_boots, ncol = 2,nrow = ceiling(le
 
 
 ```{r}
-ggsave("figures/tax_boots_art1.jpg",plottaxboots, height = 8, width = 6 )
+ggsave("figures/tax_boots_art1.jpg",plottaxboots, height = 4, width = 6 )
 ```
 
 check seq depth per pcrs
@@ -271,7 +272,7 @@ plotseqdepth <- ggarrange(plotlist =  plot_seq_depth, ncol = 2,nrow = ceiling(le
 
 
 ```{r}
-ggsave("figures/seq_depth_art1.jpg",plotseqdepth, height = 8, width = 6 )
+ggsave("figures/seq_depth_art1.jpg",plotseqdepth, height = 4, width = 6 )
 ```
 
 Test different thresholds to identify tagjumps.
@@ -328,12 +329,12 @@ for (i in 1:length(folder_names)){
 
 plottagjump <- ggarrange(plotlist =  plot_tag_jump, ncol = 2,nrow = ceiling(length(folder_names)/2))
 
-ggsave("figures/tag_jump_art1.jpg",plottagjump, height = 12, width = 13 )
+ggsave("figures/tag_jump_art1.jpg",plottagjump, height = 8, width = 13 )
 ```
 
 summarize noise in motus
 ```{r}
-# color_scale
+# color_scale (create a common scale across datasets)
 a <- unlist(combn(c("extraction_conta", "untargeted_taxon","poorly_assigned"),1,simplify = F))
 b <- c("extraction_conta|untargeted_taxon","extraction_conta|poorly_assigned","untargeted_taxon|poorly_assigned")
 c <- BBmisc::collapse(unlist(combn(c("extraction_conta", "untargeted_taxon","poorly_assigned"),3,simplify = F)),sep = "|")
@@ -387,7 +388,7 @@ for (i in 1:length(folder_names)){
 ```{r}
 plotnoisemotu <- ggarrange(plotlist =  plot_noise_motu, ncol = 2,nrow = ceiling(length(folder_names)/2),common.legend = T, legend = "right")
 
-ggsave("figures/noise_motu_art1.jpg",plotnoisemotu, height = 9, width = 8 )
+ggsave("figures/noise_motu_art1.jpg",plotnoisemotu, height = 5, width = 8 )
 ```
 
 summarize noise in pcrs
@@ -441,7 +442,7 @@ for (i in 1:length(folder_names)){
 
 ```{r}
 plotnoisepcr <- ggarrange(plotlist =  plot_noise_pcr, ncol = 2,nrow = ceiling(length(folder_names)/2),common.legend = T,legend = "right")
-ggsave("figures/noise_pcr_art1.jpg",plotnoisepcr, height = 8, width = 6)
+ggsave("figures/noise_pcr_art1.jpg",plotnoisepcr, height = 5, width = 8)
 ```
 
 
@@ -450,7 +451,7 @@ ggsave("figures/noise_pcr_art1.jpg",plotnoisepcr, height = 8, width = 6)
 ## !!!!!! SELECT THRESHOLD !!!!!!
 Choosen threshold for tagjumps
 ```{r}
-chsn_thrshld <- rep("t_0.01",2)
+chsn_thrshld <- rep("t_0.05",2)
 
 cleaned_metablist <- NULL
 summary_list <- NULL
@@ -464,7 +465,7 @@ for (i in 1:length(folder_names)){
   tmp <- subset_metabarlist(tmp, "motus", 
                             indices = rowSums(tmp$motus[,c("not_an_extraction_conta", "target_taxon")]) == 2)# ?poorly assigned?
   
-  # Subset on pcrs and keep only controls 
+  # Subset on pcrs and keep only samples 
   cleaned_metablist[[folder_names[i]]] <- data_temp <- subset_metabarlist(tmp, "pcrs", 
                                                                         indices = rowSums(tmp$pcrs[,c("low_contamination_level", "seqdepth_ok")]) == 2 & #, "replicating_pcr" 
                                                                           tmp$pcrs$type == "sample")
@@ -499,7 +500,7 @@ for (i in 1:length(folder_names)){
 ```{r}
 sumpipelineplots <- ggarrange(plotlist =  sumpipeline_plots, ncol = 2,nrow = ceiling(length(sumpipeline_plots)/2),common.legend = T, legend = "bottom")
 
-ggsave("figures/sum_pipeline_art1.jpg",sumpipelineplots, height = 6, width = 6)
+ggsave("figures/sum_pipeline_art1.jpg",sumpipelineplots, height = 3, width = 6)
 ```
 
 Visualize the effects of cleaning on MOTU-reads correlation in each pcrs.
@@ -519,7 +520,7 @@ for (i in 1:length(folder_names)){
 
 ```{r}
 moturead <- ggarrange(plotlist = motu_read_plots_post, ncol = 2, nrow = ceiling(length(motu_read_plots_post)/2), common.legend = T, legend = "bottom")
-ggsave("figures/motu_read_cor_post_art1.jpg",moturead, height = 8, width = 6 )
+ggsave("figures/motu_read_cor_post_art1.jpg",moturead, height = 4, width = 6 )
 ```
 
 Visualize the effects of threshold on conf taxboots.
@@ -547,18 +548,18 @@ for (i in 1:length(folder_names)){
 ```{r}
 plottaxbootspost <- ggarrange(plotlist =  plot_tax_boots_post, ncol = 2,nrow = ceiling(length(plot_tax_boots_post)/2), common.legend = T , legend ="bottom")
 
-ggsave("figures/tax_boots_post_art1.jpg",plottaxbootspost, height = 8, width = 6 )
+ggsave("figures/tax_boots_post_art1.jpg",plottaxbootspost, height = 4, width = 6 )
 ```
 
 ```{r}
-raref_plots <- NULL
-for (i in 1:length(folder_names)){
-  data_temp <- cleaned_metablist[[i]]
-  raref <- hill_rarefaction(data_temp, nboot = 100, nsteps = 10)
-  raref_plots[[folder_names[i]]] <- gghill_rarefaction(raref) + ggtitle(folder_names[[i]])
-}
-raref <- ggarrange(plotlist =  raref_plots, ncol = 1, common.legend = T, legend ="bottom")
-ggsave("figures/raref_post_vnart1.jpg",raref, height = 20, width = 15 )
+# raref_plots <- NULL
+# for (i in 1:length(folder_names)){
+#   data_temp <- cleaned_metablist[[i]]
+#   raref <- hill_rarefaction(data_temp, nboot = 100, nsteps = 10)
+#   raref_plots[[folder_names[i]]] <- gghill_rarefaction(raref) + ggtitle(folder_names[[i]])
+# }
+# raref <- ggarrange(plotlist =  raref_plots, ncol = 1, common.legend = T, legend ="bottom")
+# ggsave("figures/raref_post_vnart1.jpg",raref, height = 20, width = 15 )
 ```
 
 # Generate physeqlists
@@ -641,7 +642,7 @@ for (i in 1:length(physeqlists)){
 ```{r}
 betadiv <- ggarrange(plotlist =  beta_div, ncol = 2,nrow = ceiling(length(beta_div)/2),common.legend = T, legend = "bottom")
 
-ggsave("figures/betadiv_art1.jpg",betadiv, height = 12, width = 30 )
+ggsave("figures/betadiv_art1.jpg",betadiv, height = 12, width = 40 )
 ```
 
 ```{r}
@@ -682,7 +683,7 @@ for (i in 1:length(physeqlists)){
 ```{r}
 betadiv2 <- ggarrange(plotlist =  beta_div2, ncol = 2,nrow = ceiling(length(beta_div2)/2),common.legend = T, legend = "bottom")
 
-ggsave("figures/betadiv2_art1.jpg",betadiv2, height = 12, width = 30 )
+ggsave("figures/betadiv2_art1.jpg",betadiv2, height = 12, width = 40 )
 ```
 
 Super weird differences between seelidng ITS datasets before and after cleaning.
