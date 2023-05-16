@@ -2,7 +2,6 @@ Script to generate data for my papers from phyloseq objects generated in `clean_
 
 ```{r}
 EcophyCofog::Library(c("phyloseq","phylosmith","forcats","dplyr","speedyseq","stringr"))
-load("data/cl_metablists_physeq_art2.RData")
 ```
 
 
@@ -21,19 +20,27 @@ Runs containing root and leaf samples:
 ### Mother
 
 ```{r}
+load("data/cl_metablists_physeq_art1.RData")
 # Filter out non target samples
-# 
-# sub_mother_16s <- subset_samples(physeqlists$mother_16s2, (organ == "LEAVES" | organ == "ROOTS") & project == "HOLOBROM_SEEDLING")
-# sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, organ == "LEAVES" | organ == "ROOTS" & project == "HOLOBROM_FE" | project == "HOLOBROM_R")
-# 
-# mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # update taxa table (remove taxa with 0 reads after subset)
-# mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
+
+sub_mother_16s <- subset_samples(physeqlists$mother_16s2, (organ == "LEAVES" | organ == "ROOTS") & project == "HOLOBROM_FE" | project == "HOLOBROM_R")
+sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, (organ == "LEAVES" | organ == "ROOTS") & project == "HOLOBROM_MERES")
+
+sub_mother_16s <- subset_samples(sub_mother_16s, is.na(motus_post)==F)
+sub_mother_ITS <- subset_samples(sub_mother_ITS, is.na(motus_post)==F)
+sub_mother_16s <- subset_samples(sub_mother_16s, sample_id!="0_FEpl4")
+sub_mother_ITS <- subset_samples(sub_mother_ITS, !sample_id("o_pl4","0_FEpl4"))
+sub_mother_ITS <- subset_samples(sub_mother_ITS, grepl("J",sample_id)==F)
+
+mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # update taxa table (remove taxa with 0 reads after subset)
+mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
 ```
 
 
 ## Seedling
 
 ```{r}
+load("data/cl_metablists_physeq_art2.RData")
 # Filter out non target samples
 sub_seedling_16s <- subset_samples(physeqlists$seedling_16s, organ %in%c( "LEAVES","ROOTS"))
 sub_seedling_ITS <- subset_samples(physeqlists$seedling_ITS2, organ %in%c( "LEAVES","ROOTS"))
@@ -59,6 +66,6 @@ FUNC assignment?
 
 
 ```{r}
-save(list=c("seedling_16s","seedling_ITS"), file = "data/out/seedling_leafNroot.RData")
+save(list=c("mother_16s","mother_ITS","seedling_16s","seedling_ITS"), file = "data/out/seedling_leafNroot.RData")
 ```
 
