@@ -29,7 +29,7 @@ sub_mother_ITS <- subset_samples(physeqlists$mother_ITS2, (organ == "LEAVES" | o
 sub_mother_16s <- subset_samples(sub_mother_16s, is.na(motus_post)==F)
 sub_mother_ITS <- subset_samples(sub_mother_ITS, is.na(motus_post)==F)
 sub_mother_16s <- subset_samples(sub_mother_16s, sample_id!="0_FEpl4")
-sub_mother_ITS <- subset_samples(sub_mother_ITS, !sample_id("o_pl4","0_FEpl4"))
+sub_mother_ITS <- subset_samples(sub_mother_ITS, !sample_id%in%c("0_pl4","0_FEpl4"))
 sub_mother_ITS <- subset_samples(sub_mother_ITS, grepl("J",sample_id)==F)
 
 mother_16s <- prune_taxa(taxa_sums(sub_mother_16s)>0,sub_mother_16s) # update taxa table (remove taxa with 0 reads after subset)
