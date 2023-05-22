@@ -15,7 +15,7 @@ Plot the number of Reads and OTUs per pcr according to pcr type.
 ```{r}
 load("data/raw_metablists_art1.RData")
 folder_names <- list.files("data/OBI_pipeline_results/")
-folder_names <- folder_names[-c(3:5)]
+folder_names <- folder_names[1:2]
 
 diag_plots <- NULL
 for (i in 1:length(folder_names)){
