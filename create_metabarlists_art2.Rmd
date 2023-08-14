@@ -35,7 +35,7 @@ Load required files:
 
 ```{r}
 folder_names <- list.files("data/OBI_pipeline_results/")
-folder_names <- folder_names[c(6:7)]
+folder_names <- folder_names[c(8:9)]
 
 list_motus <- list()
 list_reads <- list()
