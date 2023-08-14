@@ -30,3 +30,14 @@ mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS)
 save(list=c("mother_16s","mother_ITS"), file = "data/out/mother_leaf_art1.RData")
 ```
 
+
+Get soils
+
+```{r}
+sub_16s_soils <- subset_samples(physeqlists$mother_16s2, project == "HOLOBROM-Sol")
+load("data/cl_metablists_physeq_jm_int.RData")
+sub_its_soils <- subset_samples(physeqlists$jm_ITS2_2, project.y == "HOLOBROM_SOL")
+
+save(list=c("sub_16s_soils","sub_its_soils"), file = "data/out/soils_art1.RData")
+```
+
