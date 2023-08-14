@@ -1,0 +1,28 @@
+Script to generate data for my papers from phyloseq objects generated in `clean_metabarlists.Rmd`.
+
+```{r}
+EcophyCofog::Library(c("phyloseq","phylosmith","forcats","dplyr","speedyseq","stringr"))
+load("data/cl_metablists_physeq_jm_int.RData")
+```
+
+
+# Grouping in relevant datasets for papers
+
+get its from holobrom soils!
+
+## Paper 1
+
+### Subset
+
+
+```{r}
+# First filter non mother leaf samples
+sub_mother_ITS <- subset_samples(physeqlists$jm_ITS2, project.y =="HOLOBROM_SOL")
+sub_mother_ITS_2 <- subset_samples(physeqlists$jm_ITS2_2, project.y =="HOLOBROM_SOL")
+
+sub_mother_ITS <- prune_taxa(taxa_sums(sub_mother_ITS)>0,sub_mother_ITS) # update taxa table (remove taxa with 0 reads after subset)
+sub_mother_ITS_2 <- prune_taxa(taxa_sums(sub_mother_ITS_2)>0,sub_mother_ITS_2)
+
+save(list=c("sub_mother_ITS","sub_mother_ITS_2"), file = "data/out/soil_fungi_art1.RData")
+```
+
