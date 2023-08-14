@@ -69,3 +69,19 @@ FUNC assignment?
 save(list=c("mother_16s","mother_ITS","seedling_16s","seedling_ITS"), file = "data/out/seedling_leafNroot.RData")
 ```
 
+
+#SEEDS
+```{r}
+sub_seeds_16s <- subset_samples(physeqlists$mother_16s2, organ == "SEEDS")
+sub_seeds_its <- subset_samples(physeqlists$mother_ITS2, organ == "SEEDS")
+
+sub_seeds_16s <- subset_samples(sub_seeds_16s, is.na(motus_post)==F)
+sub_seeds_its <- subset_samples(sub_seeds_its, is.na(motus_post)==F)
+sub_seeds_16s <- subset_samples(sub_seeds_16s, sample_id!="0_FEpl4")
+sub_seeds_its <- subset_samples(sub_seeds_its, !sample_id%in%c("0_pl4","0_FEpl4"))
+```
+
+```{r}
+save(list=c("sub_seeds_16s","sub_seeds_its"), file = "data/out/seeds.RData")
+```
+
